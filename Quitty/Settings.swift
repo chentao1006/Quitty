@@ -211,7 +211,7 @@ class Settings: ObservableObject {
     }
 
     var closeDelay: Double {
-        get { defaults.object(forKey: Key.closeDelay.rawValue) as? Double ?? 0.5 }
+        get { defaults.object(forKey: Key.closeDelay.rawValue) as? Double ?? 2.0 }
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.closeDelay.rawValue)

@@ -6,6 +6,7 @@
 "tab_general" = "General";
 "tab_apps" = "App List";
 "tab_data" = "Data";
+"tab_troubleshooting" = "Troubleshooting";
 
 "section_general" = "GENERAL";
 "launch_hidden" = "Launch hidden (menu bar only)";
@@ -50,3 +51,8 @@
 
 "desc_exclude" = "Quitty will automatically quit all apps when they close, except those listed below:";
 "desc_include" = "Quitty will only automatically quit apps listed below:";
+
+"section_troubleshooting" = "TROUBLESHOOTING";
+"btn_diagnostic" = "Self-Diagnostic & Fix";
+"diagnostic_ok" = "System seems healthy and watching apps.";
+"diagnostic_restarting" = "Issues detected. Restarting Quitty...";

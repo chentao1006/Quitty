@@ -192,4 +192,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func showMenuBarIcon() {
         statusItem?.isVisible = true
     }
+
+    // MARK: - Diagnostic & Relaunch
+
+    func checkHealthAndFix() -> String {
+        // 1. Check Permissions
+        if !AXIsProcessTrusted() {
+            return Settings.shared.localizedString("status_unauthorized")
+        }
+
+        // 2. Check if engine is actually holding any observers
+        let runningApps = NSWorkspace.shared.runningApplications.filter { 
+            $0.activationPolicy == .regular && $0.bundleIdentifier != Bundle.main.bundleIdentifier 
+        }
+        
+        // Basic re-sync
+        windowWatcher.refreshAllApps()
+        
+        // If we have multiple apps running but 0 observers, that's a bad sign (API might be stuck)
+        if runningApps.count >= 2 && windowWatcher.observerCount == 0 {
+            return "restart"
+        }
+        
+        return "ok"
+    }
+
+    func relaunch() {
+        let path = Bundle.main.bundlePath
+        let task = Process()
+        task.launchPath = "/usr/bin/open"
+        task.arguments = ["-n", path]
+        task.launch()
+        NSApplication.shared.terminate(nil)
+    }
 }

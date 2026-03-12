@@ -39,9 +39,17 @@ struct SettingsView: View {
                     Label(settings.localizedString("tab_data"), systemImage: "externaldrive")
                 }
                 .tag(2)
+            
+            TroubleshootingSettingsView(settings: settings)
+                .tabItem {
+                    Label(settings.localizedString("tab_troubleshooting"), systemImage: "bolt.shield")
+                }
+                .tag(3)
         }
-        .padding()
-        .frame(width: 600, height: 500)
+        // Force redraw on language change AND force a wide layout to prevent collapse
+        .id(settings.appLanguage)
+        .frame(minWidth: 650, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
     }
 }
 
@@ -99,6 +107,66 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+struct TroubleshootingSettingsView: View {
+    @ObservedObject var settings: Settings
+    @State private var isRunningDiagnostic = false
+    @State private var diagnosticResult = ""
+
+    var body: some View {
+        Form {
+            Section {
+                Button {
+                    runDiagnostic()
+                } label: {
+                    HStack {
+                        Text(settings.localizedString("btn_diagnostic"))
+                        if isRunningDiagnostic {
+                            Spacer()
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                }
+                .disabled(isRunningDiagnostic)
+                
+                if !diagnosticResult.isEmpty {
+                    Text(diagnosticResult)
+                        .font(.caption)
+                        .foregroundColor(diagnosticResult.contains("...") ? .orange : .secondary)
+                }
+            } header: {
+                Text(settings.localizedString("section_troubleshooting"))
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func runDiagnostic() {
+        isRunningDiagnostic = true
+        diagnosticResult = ""
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard let delegate = NSApplication.shared.delegate as? AppDelegate else {
+                isRunningDiagnostic = false
+                return
+            }
+            
+            let status = delegate.checkHealthAndFix()
+            if status == "restart" {
+                diagnosticResult = settings.localizedString("diagnostic_restarting")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    delegate.relaunch()
+                }
+            } else if status == "ok" {
+                diagnosticResult = settings.localizedString("diagnostic_ok")
+                isRunningDiagnostic = false
+            } else {
+                diagnosticResult = status // Likely "Not Authorized"
+                isRunningDiagnostic = false
+            }
+        }
     }
 }
 
@@ -185,15 +253,17 @@ struct AppListSettingsView: View {
     
     private func addApp() {
         let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         
-        if panel.runModal() == .OK, let url = panel.url {
-            if !settings.excludedApps.contains(url.path) {
-                settings.excludedApps.append(url.path)
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                if !settings.excludedApps.contains(url.path) {
+                    settings.excludedApps.append(url.path)
+                }
             }
         }
     }

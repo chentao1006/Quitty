@@ -30,40 +30,53 @@ private let kAXDrawerSubrole = "AXDrawer"
 
 class WindowWatcher {
 
-    // One AXObserver per running app PID
+    // One AXObserver per running app PID - ALWAYS access on Main Thread
     private var observers: [pid_t: AXObserver] = [:]
     private var pendingQuits: [pid_t: DispatchWorkItem] = [:]
     private let queue = DispatchQueue(label: "com.quitty.watcher", qos: .userInitiated)
+
+    var observerCount: Int {
+        return observers.count
+    }
 
     // MARK: - Public Interface
 
     func start() {
         setupWorkspaceObservers()
-        // Watch all currently running apps – move to background to avoid freezing UI
-        queue.async {
+        // Watch all currently running apps
+        refreshAllApps()
+    }
+
+    func stop() {
+        DispatchQueue.main.async {
+            // Remove all AX observers
+            for (pid, observer) in self.observers {
+                if let app = NSRunningApplication(processIdentifier: pid) {
+                    self.removeObserver(observer, for: app)
+                }
+                CFRunLoopRemoveSource(
+                    CFRunLoopGetMain(),
+                    AXObserverGetRunLoopSource(observer),
+                    .defaultMode
+                )
+            }
+            self.observers.removeAll()
+            for (_, item) in self.pendingQuits {
+                item.cancel()
+            }
+            self.pendingQuits.removeAll()
+
+            NotificationCenter.default.removeObserver(self)
+            NSWorkspace.shared.notificationCenter.removeObserver(self)
+        }
+    }
+
+    func refreshAllApps() {
+        DispatchQueue.main.async {
             for app in NSWorkspace.shared.runningApplications {
                 self.watchApp(app)
             }
         }
-    }
-
-    func stop() {
-        // Remove all AX observers
-        for (pid, observer) in observers {
-            if let app = NSRunningApplication(processIdentifier: pid) {
-                removeObserver(observer, for: app)
-            }
-            CFRunLoopRemoveSource(
-                CFRunLoopGetMain(),
-                AXObserverGetRunLoopSource(observer),
-                .defaultMode
-            )
-        }
-        observers.removeAll()
-        pendingQuits.removeAll()
-
-        NotificationCenter.default.removeObserver(self)
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     // MARK: - NSWorkspace Notifications
@@ -103,18 +116,20 @@ class WindowWatcher {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
         let pid = app.processIdentifier
         
-        // Remove from observers and cleanup
-        if let observer = observers.removeValue(forKey: pid) {
-            CFRunLoopRemoveSource(
-                CFRunLoopGetMain(),
-                AXObserverGetRunLoopSource(observer),
-                .defaultMode
-            )
-            print("Successfully removed observer for terminated PID: \(pid)")
+        DispatchQueue.main.async {
+            // Remove from observers and cleanup
+            if let observer = self.observers.removeValue(forKey: pid) {
+                CFRunLoopRemoveSource(
+                    CFRunLoopGetMain(),
+                    AXObserverGetRunLoopSource(observer),
+                    .defaultMode
+                )
+                print("Quitty: Cleaned up observer for terminated PID: \(pid)")
+            }
+            
+            self.pendingQuits[pid]?.cancel()
+            self.pendingQuits.removeValue(forKey: pid)
         }
-        
-        pendingQuits[pid]?.cancel()
-        pendingQuits.removeValue(forKey: pid)
     }
 
     @objc private func appActivated(_ notification: Notification) {
@@ -138,7 +153,7 @@ class WindowWatcher {
         // Avoid watching terminated apps
         guard !app.isTerminated else { return }
 
-        print("Attempting to watch: \(app.localizedName ?? "Unknown") (PID: \(pid))")
+        print("Quitty: Attempting to watch: \(app.localizedName ?? "Unknown") (PID: \(pid))")
 
         // Create AX element for the target app
         let axApp = AXUIElementCreateApplication(pid)
@@ -150,28 +165,28 @@ class WindowWatcher {
         let err = AXObserverCreate(pid, { (observer, element, notification, userData) in
             guard let userData = userData else { return }
             let watcher = Unmanaged<WindowWatcher>.fromOpaque(userData).takeUnretainedValue()
-            let elementPid = AXUIElementGetPid(element)
             let notificationName = notification as String
-            print("Received accessibility notification: \(notificationName) for PID: \(elementPid)")
+            
+            // Re-fetch PID safely inside callback to be sure
+            var elementPid: pid_t = 0
+            AXUIElementGetPid(element, &elementPid)
+            
             watcher.handleAXNotification(element: element, notification: notificationName, pid: elementPid)
         }, &observer)
 
         guard err == .success, let obs = observer else {
-            print("Failed to create AXObserver for PID \(pid): \(err.rawValue)")
+            if err == .apiDisabled {
+                print("Quitty: ERROR - Accessibility API disabled. Please check permissions.")
+            } else {
+                print("Quitty: Failed to create AXObserver for PID \(pid): \(err.rawValue)")
+            }
             return
         }
 
-        // Subscribe to window closed events
-        _ = AXObserverAddNotification(obs, axApp, kAXWindowClosedNotification, selfPtr)
-        
-        // Also subscribe to window creation to cancel any pending quits
-        _ = AXObserverAddNotification(obs, axApp, kAXWindowCreatedNotification, selfPtr)
-        
-        // Also subscribe to UI element destroyed (catches some Sequoia cases where window closed isn't enough)
-        _ = AXObserverAddNotification(obs, axApp, kAXUIElementDestroyedNotification as CFString, selfPtr)
-        
-        // Always proceed if we reach here, raw AX API might report error even if it works on Sequoia
-        // We'll trust that some notifications were registered.
+        // Subscribe to window closed and created events
+        AXObserverAddNotification(obs, axApp, kAXWindowClosedNotification, selfPtr)
+        AXObserverAddNotification(obs, axApp, kAXWindowCreatedNotification, selfPtr)
+        AXObserverAddNotification(obs, axApp, kAXUIElementDestroyedNotification as CFString, selfPtr)
 
         // Add to main run loop
         CFRunLoopAddSource(
@@ -181,7 +196,7 @@ class WindowWatcher {
         )
 
         observers[pid] = obs
-        print("Now watching: \(app.localizedName ?? "App") (PID: \(pid))")
+        print("Quitty: Successfully watching: \(app.localizedName ?? "App") (PID: \(pid))")
     }
 
     private func removeObserver(_ observer: AXObserver, for app: NSRunningApplication) {
@@ -198,8 +213,7 @@ class WindowWatcher {
         guard let app = NSRunningApplication(processIdentifier: pid) else { return }
 
         if notification == (kAXWindowCreatedNotification as String) {
-            // New window appeared! Cancel any pending quit immediately
-            print("Window created for \(app.localizedName ?? "app"). Cancelling pending quit.")
+            print("Quitty: Window created for \(app.localizedName ?? "app"). Cancelling pending quit.")
             DispatchQueue.main.async {
                 self.pendingQuits[pid]?.cancel()
                 self.pendingQuits.removeValue(forKey: pid)
@@ -208,8 +222,8 @@ class WindowWatcher {
         }
 
         // For closed/destroyed events, check if we should quit
-        // Small delay to let the window list update
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Delay slightly to let the application update its window list internal state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.checkAndQuit(app: app)
         }
     }
@@ -220,15 +234,12 @@ class WindowWatcher {
         let pid = app.processIdentifier
         let appName = app.localizedName ?? "Unknown"
         
-        // Skip if already terminated or if we have a pending quit that's about to fire
         guard !app.isTerminated else { return }
 
-        // Use a background queue for AX calls to avoid blocking the main thread if the target app hangs
+        // AX Calls can sometimes block if an app is beachballing, but we must use background carefully
         queue.async { [weak self] in
             guard let self = self else { return }
             
-            print("Checking if \(appName) should quit...")
-
             // Get window list using Accessibility API
             let axApp = AXUIElementCreateApplication(pid)
             var windowsRef: CFTypeRef?
@@ -236,26 +247,18 @@ class WindowWatcher {
 
             var windowCount = 0
             if err == .success, let windows = windowsRef as? [AXUIElement] {
-                // Filter out minimized or sheet windows – only count "real" visible windows
                 windowCount = windows.filter { window in
                     var subrole: CFTypeRef?
                     AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole)
                     let sub = subrole as? String ?? ""
-
-                    // Count all windows except sheets and drawers. 
-                    // Minimized windows NOW COUNT as active windows to prevent accidental kills.
-                    let keep = sub != kAXSheetSubrole && sub != kAXDrawerSubrole
-                    return keep
+                    return sub != kAXSheetSubrole && sub != kAXDrawerSubrole
                 }.count
-                print("Active window count for \(appName): \(windowCount)")
-            } else {
-                print("Failed to get windows for \(appName): \(err.rawValue)")
-                // If we can't get windows, assume we shouldn't quit yet to be safe
-                return
+            } else if err != .success && err != .noValue {
+                print("Quitty: Warning - Failed to get windows for \(appName): \(err.rawValue)")
+                return // Safety: don't quit if we can't be sure
             }
 
             if windowCount > 0 {
-                // App still has visible windows – cancel any pending quit
                 DispatchQueue.main.async {
                     self.pendingQuits[pid]?.cancel()
                     self.pendingQuits.removeValue(forKey: pid)
@@ -263,56 +266,60 @@ class WindowWatcher {
                 return
             }
 
-            // Check settings – should we quit this app?
+            // Check settings
             guard let bundlePath = app.bundleURL?.path else { return }
             let bundleID = app.bundleIdentifier
             if !Settings.shared.shouldQuitApp(bundlePath: bundlePath, bundleID: bundleID) {
                 return
             }
 
-            // Back to main thread to schedule the delayed quit
+            // Final check on Main Thread to schedule termination
             DispatchQueue.main.async {
-                // Cancel any previous pending quit for this pid
                 self.pendingQuits[pid]?.cancel()
                 
                 let delay = Settings.shared.closeDelay
                 let workItem = DispatchWorkItem { [weak self] in
                     guard let self = self else { return }
-                    self.pendingQuits.removeValue(forKey: pid)
-                    
-                    // Double-check app is still there and still has no windows
-                    guard let runningApp = NSRunningApplication(processIdentifier: pid),
-                          !runningApp.isTerminated else { return }
-
-                    // Re-run window check one last time on background queue before final termination
-                    self.queue.async {
-                        let axCheck = AXUIElementCreateApplication(pid)
-                        var wins: CFTypeRef?
-                        let res = AXUIElementCopyAttributeValue(axCheck, kAXWindowsAttribute as CFString, &wins)
-                        
-                        guard res == .success, let windows = wins as? [AXUIElement] else {
-                            print("Quitty: Final check failed for \(appName), skipping quit to be safe.")
-                            return
-                        }
-
-                        let count = windows.filter { window in
-                            var subrole: CFTypeRef?
-                            AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole)
-                            let sub = subrole as? String ?? ""
-                            return sub != kAXSheetSubrole && sub != kAXDrawerSubrole
-                        }.count
-                        
-                        if count == 0 {
-                            print("Quitty: Terminating \(runningApp.localizedName ?? "<unknown>") (PID: \(pid))")
-                            DispatchQueue.main.async {
-                                runningApp.terminate()
-                            }
-                        }
-                    }
+                    self.performFinalCheckAndQuit(pid: pid, appName: appName)
                 }
 
                 self.pendingQuits[pid] = workItem
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+            }
+        }
+    }
+
+    private func performFinalCheckAndQuit(pid: pid_t, appName: String) {
+        // Double check app is still alive
+        guard let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated else {
+            self.pendingQuits.removeValue(forKey: pid)
+            return
+        }
+
+        // Final window count check on background queue to avoid freezing Quitty
+        queue.async {
+            let axApp = AXUIElementCreateApplication(pid)
+            var windows: CFTypeRef?
+            let res = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
+            
+            let count = (windows as? [AXUIElement])?.filter { win in
+                var sub: CFTypeRef?
+                AXUIElementCopyAttributeValue(win, kAXSubroleAttribute as CFString, &sub)
+                let s = sub as? String ?? ""
+                return s != kAXSheetSubrole && s != kAXDrawerSubrole
+            }.count ?? 0
+            
+            if count == 0 {
+                print("Quitty: Final check confirmed 0 windows for \(appName). Terminating.")
+                DispatchQueue.main.async {
+                    app.terminate()
+                    self.pendingQuits.removeValue(forKey: pid)
+                }
+            } else {
+                print("Quitty: Final check skipped termination for \(appName) (Window count: \(count))")
+                DispatchQueue.main.async {
+                    self.pendingQuits.removeValue(forKey: pid)
+                }
             }
         }
     }
