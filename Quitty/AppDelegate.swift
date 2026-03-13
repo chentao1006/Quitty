@@ -35,13 +35,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenuBar()
         Settings.shared.log("setupMenuBar done, statusItem.isVisible = \(statusItem?.isVisible ?? false)")
 
-        // Show settings on first launch or if not launch-hidden
+        // Show settings on first launch or if not launch-hidden or if not authorized
         let settings = Settings.shared
-        print("launchHidden = \(settings.launchHidden), menubarIconEnabled = \(settings.menubarIconEnabled)")
-        if !settings.launchHidden {
-            Settings.shared.log("Showing settings window...")
-            showSettings()
-            Settings.shared.log("showSettings done, window = \(settingsWindowController?.window), isVisible = \(settingsWindowController?.window?.isVisible ?? false)")
+        let isAuthorized = AXIsProcessTrusted()
+        print("launchHidden = \(settings.launchHidden), isAuthorized = \(isAuthorized), menubarIconEnabled = \(settings.menubarIconEnabled)")
+        
+        if !settings.launchHidden || !isAuthorized {
+            Settings.shared.log("Showing settings window (launchHidden: \(settings.launchHidden), authorized: \(isAuthorized))...")
+            DispatchQueue.main.async {
+                self.showSettings()
+            }
         }
 
         // Check accessibility permissions and start watching
@@ -82,10 +85,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        let authorized = AXIsProcessTrusted()
+        
         // Retry starting watcher if not already started
-        if !watcherStarted && AXIsProcessTrusted() {
+        if !watcherStarted && authorized {
             Settings.shared.log("Permissions granted! Starting watcher...")
             startWatcher()
+        }
+        
+        // Auto-trigger permission prompt if not authorized and window is visible
+        if !authorized && settingsWindowController?.window?.isVisible == true {
+            Settings.shared.log("App active but unauthorized. Triggering prompt...")
+            checkAccessibilityPermissions(silent: false)
         }
         
         // Refresh settings UI to reflect permission changes
@@ -104,41 +115,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func checkAccessibilityPermissions(silent: Bool = false) -> Bool {
         let trusted = AXIsProcessTrusted()
         if !trusted {
-            if !silent && !isShowingPermissionAlert {
-                isShowingPermissionAlert = true
-                
-                // Prompt systemic dialog if needed
+            if !silent {
+                // Prompt systemic dialog only. macOS shows its own window, 
+                // so we don't need a redundant NSAlert.
                 let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true]
                 AXIsProcessTrustedWithOptions(options)
-
-                // Show explanatory alert
-                let alert = NSAlert()
-                alert.messageText = Settings.shared.localizedString("alert_perm_title")
-                alert.informativeText = Settings.shared.localizedString("alert_perm_msg")
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: Settings.shared.localizedString("btn_open_settings"))
-                alert.addButton(withTitle: Settings.shared.localizedString("btn_ignore"))
-
-                // Determine context: sheet or modal
-                let targetWindow = settingsWindowController?.window
-                if let window = targetWindow, window.isVisible {
-                    alert.beginSheetModal(for: window) { [weak self] response in
-                        self?.isShowingPermissionAlert = false
-                        if response == .alertFirstButtonReturn {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-                        }
-                    }
-                } else {
-                    // Using runModal() on the main thread during startup causes a hang.
-                    // Instead, we use a small delay or ensure it's not blocking applicationDidFinishLaunching.
-                    DispatchQueue.main.async {
-                        let response = alert.runModal()
-                        self.isShowingPermissionAlert = false
-                        if response == .alertFirstButtonReturn {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-                        }
-                    }
-                }
             }
             return false
         }
@@ -186,6 +167,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindowController = SettingsWindowController()
         }
         settingsWindowController?.showWindow(self)
+        
+        // If not authorized, trigger the system prompt after a short delay
+        // to ensure it appears ON TOP of our setting window.
+        if !AXIsProcessTrusted() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.checkAccessibilityPermissions(silent: false)
+            }
+        }
     }
 
     func hideMenuBarIcon() {

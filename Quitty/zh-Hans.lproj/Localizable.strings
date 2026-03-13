@@ -37,6 +37,7 @@
 "status_unauthorized" = "未授权";
 "btn_check" = "再次检查";
 "btn_grant" = "授予权限";
+"permission_desc" = "需要辅助功能权限来监控窗口状态并实现自动退出功能。";
 
 "alert_perm_title" = "需要辅助功能权限";
 "alert_perm_msg" = "“随手关”需要辅助功能权限来检测窗口关闭。请在“系统设置”→“隐私与安全性”→“辅助功能”中授予权限，然后再次点击“随手关”应用。";

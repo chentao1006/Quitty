@@ -37,6 +37,7 @@
 "status_unauthorized" = "Not Authorized";
 "btn_check" = "Check Again";
 "btn_grant" = "Grant Access";
+"permission_desc" = "Accessibility permission is required for Quitty to monitor window status and quit apps.";
 
 "alert_perm_title" = "Accessibility Access Required";
 "alert_perm_msg" = "Quitty needs Accessibility access to detect when app windows are closed.\n\nPlease grant access in System Settings → Privacy & Security → Accessibility, then click on the Quitty app again.";

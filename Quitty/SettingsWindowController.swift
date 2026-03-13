@@ -34,10 +34,14 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     override func showWindow(_ sender: Any?) {
         NSApp.setActivationPolicy(.regular)
-        // More robust activation
-        NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
         super.showWindow(sender)
         window?.makeKeyAndOrderFront(sender)
+        
+        // Ensure the app becomes active and window comes to front
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            self.window?.makeKeyAndOrderFront(nil)
+        }
     }
 
     func windowWillClose(_ notification: Notification) {

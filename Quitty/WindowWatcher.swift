@@ -43,6 +43,10 @@ class WindowWatcher {
     private var observers: [pid_t: AXObserver] = [:]
     private var observerContexts: [pid_t: ObserverContext] = [:]
     private var pendingQuits: [pid_t: DispatchWorkItem] = [:]
+    private var armedPids: Set<pid_t> = [] // Apps that have (or had) at least one window
+    private var lastHookTimes: [pid_t: Date] = [:] // When we started watching this app
+    private var lastCheckTimes: [pid_t: Date] = [:] // Anti-spam for checkAndQuit
+    private var lastSpaceChangeDate = Date.distantPast
     private let queue = DispatchQueue(label: "com.quitty.watcher", qos: .userInitiated, attributes: .concurrent)
 
     var observerCount: Int {
@@ -53,8 +57,10 @@ class WindowWatcher {
 
     func start() {
         setupWorkspaceObservers()
-        // Watch all currently running apps
-        refreshAllApps()
+        // Watch all currently running apps, but wait a bit for system to settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.refreshAllApps()
+        }
     }
 
     func stop() {
@@ -88,7 +94,10 @@ class WindowWatcher {
             
             // 1. Hook NEW apps that are now relevant
             for app in activeApps {
-                self.watchApp(app)
+                // Use a slight delay even for existing apps to ensure stability on startup
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.watchApp(app)
+                }
             }
             
             // 2. Cleanup OLD observers for apps that are no longer relevant (e.g. settings changed)
@@ -97,6 +106,7 @@ class WindowWatcher {
                 // If app is gone entirely, appTerminated usually handles it, but let's be double sure
                 if !pidsInWorkspace.contains(pid) {
                     self.removeObserverForPid(pid)
+                    self.lastHookTimes.removeValue(forKey: pid)
                     continue
                 }
                 
@@ -105,6 +115,7 @@ class WindowWatcher {
                    !Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier) {
                     Settings.shared.log("Cleaning up observer for \(app.localizedName ?? "app") - no longer in target list")
                     self.removeObserverForPid(pid)
+                    self.lastHookTimes.removeValue(forKey: pid)
                 }
             }
         }
@@ -146,6 +157,17 @@ class WindowWatcher {
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
+        nc.addObserver(
+            self,
+            selector: #selector(spaceChanged),
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func spaceChanged() {
+        lastSpaceChangeDate = Date()
+        Settings.shared.log("Space change detected. Postponing window checks.")
     }
 
     @objc private func appLaunched(_ notification: Notification) {
@@ -172,6 +194,9 @@ class WindowWatcher {
             }
             
             self.observerContexts.removeValue(forKey: pid)
+            self.armedPids.remove(pid)
+            self.lastHookTimes.removeValue(forKey: pid)
+            self.lastCheckTimes.removeValue(forKey: pid)
             self.pendingQuits[pid]?.cancel()
             self.pendingQuits.removeValue(forKey: pid)
         }
@@ -210,6 +235,9 @@ class WindowWatcher {
 
         Settings.shared.log("Attempting to watch Target App: \(appName) (PID: \(pid))")
 
+        // Initial check: if app already has windows, arm it immediately
+        checkInitialWindows(pid: pid)
+
         // Create AX element for the target app
         let axApp = AXUIElementCreateApplication(pid)
 
@@ -244,12 +272,11 @@ class WindowWatcher {
         let n3 = AXObserverAddNotification(obs, axApp, kAXUIElementDestroyedNotification as CFString, contextPtr)
 
         if n1 != .success || n2 != .success || n3 != .success {
-            Settings.shared.log("Warning: Failed to subscribe to some notifications for \(appName): \(n1.rawValue), \(n2.rawValue), \(n3.rawValue)")
+            Settings.shared.log("Warning: Failed to subscribe to notifications for \(appName): \(n1.rawValue), \(n2.rawValue), \(n3.rawValue)")
             
             // If primary notifications (created/closed) failed, don't keep this observer.
-            // This allows us to retry later.
             if n1 != .success || n2 != .success {
-                Settings.shared.log("Critical subscriptions failed for \(appName). Abandoning observer for retry.")
+                Settings.shared.log("Critical subscriptions failed for \(appName). Abandoning observer.")
                 self.observerContexts.removeValue(forKey: pid)
                 return
             }
@@ -263,6 +290,7 @@ class WindowWatcher {
         )
 
         observers[pid] = obs
+        lastHookTimes[pid] = Date()
         Settings.shared.log("--- Currently watching: \(appName) ---")
     }
 
@@ -275,28 +303,73 @@ class WindowWatcher {
         AXObserverRemoveNotification(observer, axApp, kAXUIElementDestroyedNotification as CFString)
     }
 
+    private func checkInitialWindows(pid: pid_t, retries: Int = 2) {
+        // Give the app a bit of time to settle AX tree
+        queue.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self = self else { return }
+            let axApp = AXUIElementCreateApplication(pid)
+            var windows: CFTypeRef?
+            let result = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
+            
+            let list = windows as? [AXUIElement] ?? []
+            let validWindows = list.filter { window in
+                var subrole: CFTypeRef?
+                AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole)
+                let sub = subrole as? String ?? ""
+                return sub != kAXSheetSubrole && sub != kAXDrawerSubrole
+            }
+
+            if !validWindows.isEmpty {
+                DispatchQueue.main.async {
+                    self.armedPids.insert(pid)
+                }
+            } else if retries > 0 {
+                // If no windows found, try again shortly. This is crucial for apps 
+                // that are still initializing their AX tree when we hook them.
+                self.checkInitialWindows(pid: pid, retries: retries - 1)
+            }
+        }
+    }
+
     // MARK: - Window Closed Event Handler
 
     private func handleAXNotification(element: AXUIElement, notification: String, pid: pid_t) {
         guard let app = NSRunningApplication(processIdentifier: pid) else { 
-            Settings.shared.log("Received \(notification) but could not find app for PID: \(pid)")
             return 
         }
 
-        Settings.shared.log("Received \(notification) for \(app.localizedName ?? "app") (PID: \(pid))")
-
         if notification == (kAXWindowCreatedNotification as String) {
-            Settings.shared.log("Window created for \(app.localizedName ?? "app"). Cancelling pending quit.")
+            Settings.shared.log("Window created for \(app.localizedName ?? "app"). Arming and cancelling pending quit.")
             DispatchQueue.main.async {
+                self.armedPids.insert(pid)
                 self.pendingQuits[pid]?.cancel()
                 self.pendingQuits.removeValue(forKey: pid)
             }
             return
         }
+        
+        // Window closed or element destroyed
+        let isClosed = notification == (kAXWindowClosedNotification as String)
+        let isDestroyed = notification == (kAXUIElementDestroyedNotification as String)
+        guard isClosed || isDestroyed else { return }
 
-        // For closed/destroyed events, check if we should quit
-        // Delay slightly to let the application update its window list internal state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        // STABILITY PROTECTION:
+        // 1. Hook grace period (ignore noise during first 1.5s)
+        if let hookTime = lastHookTimes[pid], Date().timeIntervalSince(hookTime) < 1.5 {
+            return 
+        }
+
+        // 2. Space Switch Protection:
+        // If we are switching spaces, we use a much longer delay instead of discarding.
+        var delay = isClosed ? 0.4 : 0.8
+        if Date().timeIntervalSince(lastSpaceChangeDate) < 3.0 {
+            delay = 3.5 // Wait for space animation to finish
+            Settings.shared.log("Deffering check for \(app.localizedName ?? "app") due to space change.")
+        }
+        
+        Settings.shared.log("Received \(notification) for \(app.localizedName ?? "app") (PID: \(pid))")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.checkAndQuit(app: app)
         }
     }
@@ -308,6 +381,21 @@ class WindowWatcher {
         let appName = app.localizedName ?? "Unknown"
         
         guard !app.isTerminated else { return }
+        
+        // Safety: Do not quit applications that are hidden (Cmd+H)
+        if app.isHidden {
+            return
+        }
+        // Safety: only quit apps that have opened at least one window during this session
+        guard armedPids.contains(pid) else {
+            return
+        }
+
+        // DEBOUNCE: Don't check the same app too frequently
+        if let lastCheck = lastCheckTimes[pid], Date().timeIntervalSince(lastCheck) < 0.3 {
+            return
+        }
+        lastCheckTimes[pid] = Date()
 
         // AX Calls can sometimes block if an app is beachballing, but we must use background carefully
         queue.async { [weak self] in
@@ -350,14 +438,22 @@ class WindowWatcher {
             DispatchQueue.main.async {
                 self.pendingQuits[pid]?.cancel()
                 
-                let delay = Settings.shared.closeDelay
+                // If app is currently active (user interacting), add more safety delay
+                let isAppCurrentlyActive = app.isActive
+                let extraDelay = isAppCurrentlyActive ? 1.5 : 0.0
+                let totalDelay = Settings.shared.closeDelay + extraDelay
+                
+                if isAppCurrentlyActive {
+                    Settings.shared.log("App \(appName) is active. Using safety delay: \(totalDelay)s")
+                }
+                
                 let workItem = DispatchWorkItem { [weak self] in
                     guard let self = self else { return }
                     self.performFinalCheckAndQuit(pid: pid, appName: appName)
                 }
 
                 self.pendingQuits[pid] = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+                DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay, execute: workItem)
             }
         }
     }
@@ -383,26 +479,73 @@ class WindowWatcher {
                 return
             }
 
-            let count = (windows as? [AXUIElement])?.filter { win in
+            let foundWindows = windows as? [AXUIElement] ?? []
+            let count = foundWindows.filter { win in
                 var sub: CFTypeRef?
                 AXUIElementCopyAttributeValue(win, kAXSubroleAttribute as CFString, &sub)
                 let s = sub as? String ?? ""
                 return s != kAXSheetSubrole && s != kAXDrawerSubrole
-            }.count ?? 0
+            }.count
             
             if count == 0 {
+                // LAST STAND: Cross-verify with low-level CGWindowList.
+                // This is immune to AX tree fluctuations and covers all Spaces.
+                if self.isActualWindowPresent(pid: pid) {
+                    Settings.shared.log("AX reported 0 but CGWindowList found windows for \(appName). Aborting.")
+                    DispatchQueue.main.async {
+                        self.pendingQuits.removeValue(forKey: pid)
+                    }
+                    return
+                }
+
                 Settings.shared.log("Final check confirmed 0 windows for \(appName). Terminating.")
                 DispatchQueue.main.async {
                     app.terminate()
                     self.pendingQuits.removeValue(forKey: pid)
                 }
             } else {
-                Settings.shared.log("Final check skipped termination for \(appName) (Window count: \(count))")
+                Settings.shared.log("Final check skipped for \(appName) (Windows found: \(count))")
                 DispatchQueue.main.async {
                     self.pendingQuits.removeValue(forKey: pid)
                 }
             }
         }
+    }
+
+    /// High-reliability window check using the Window Server's direct list.
+    /// This works even if the app is beachballing or windows are on other Spaces.
+    private func isActualWindowPresent(pid: pid_t) -> Bool {
+        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
+        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return true // Safety
+        }
+
+        for window in windowList {
+            guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { continue }
+            
+            // Layer 0 is the standard window layer
+            guard let layer = window[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
+            
+            // Onscreen check (Minimized windows are NOT onscreen)
+            let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
+            if !isOnScreen { continue }
+
+            // Alpha check (Exclude invisible background workers)
+            let alpha = window[kCGWindowAlpha as String] as? Double ?? 0
+            if alpha < 0.01 { continue }
+            
+            // Size check: Ignore tiny tracking pixels or thin lines (Separator etc)
+            if let bounds = window[kCGWindowBounds as String] as? [String: Any],
+               let width = bounds["Width"] as? CGFloat, let height = bounds["Height"] as? CGFloat {
+                
+                if width > 40 && height > 40 {
+                    let name = window[kCGWindowName as String] as? String ?? "Unnamed"
+                    Settings.shared.log("   -> Found active window: \(name) (\(Int(width))x\(Int(height)))")
+                    return true
+                }
+            }
+        }
+        return false
     }
 }
 
