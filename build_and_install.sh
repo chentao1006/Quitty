@@ -7,6 +7,7 @@ set -e
 PROJECT_ROOT="."
 BUILD_DIR="${PROJECT_ROOT}/build"
 APP_NAME="Quitty.app"
+BUNDLE_ID="com.ct106.quitty"
 INSTALL_PATH="/Applications/${APP_NAME}"
 
 echo "🚀 Starting build for ${APP_NAME}..."
@@ -42,12 +43,23 @@ fi
 # 4. Move to /Applications
 echo "📦 Installing to system Applications folder (${INSTALL_PATH})..."
 
+# Terminate running instance if any
+echo "🛑 Stopping any running instance of Quitty..."
+pkill -x "Quitty" || true
+
 # If already exists, remove first
 if [ -d "${INSTALL_PATH}" ]; then
     echo "♻️ Replacing old version..."
     rm -rf "${INSTALL_PATH}"
 fi
 
+# Reset accessibility permissions to avoid manual deletion
+echo "🔐 Resetting Accessibility permissions..."
+tccutil reset Accessibility "${BUNDLE_ID}" || true
+
 cp -R "${BUILD_DIR}/${APP_NAME}" "${INSTALL_PATH}"
+
+echo "🚀 Launching ${APP_NAME}..."
+open "${INSTALL_PATH}"
 
 echo "🎉 Installation complete!"
