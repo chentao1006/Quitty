@@ -118,6 +118,47 @@ struct TroubleshootingSettingsView: View {
     var body: some View {
         Form {
             Section {
+                VStack(alignment: .leading, spacing: 5) {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 2) {
+                                ForEach(settings.logs.indices, id: \.self) { index in
+                                    Text(settings.logs[index])
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                        .textSelection(.enabled)
+                                }
+                            }
+                            .padding(8)
+                        }
+                        .frame(minHeight: 200, maxHeight: 300)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                        )
+                        .onChange(of: settings.logs.count) { _ in
+                            if let last = settings.logs.indices.last {
+                                proxy.scrollTo(last, anchor: .bottom)
+                            }
+                        }
+                    }
+                    
+                    HStack {
+                        Spacer()
+                        Button(settings.localizedString("btn_clear_logs")) {
+                            settings.logs.removeAll()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                    }
+                }
+            } header: {
+                Text(settings.localizedString("section_logs"))
+            }
+
+            Section {
                 Button {
                     runDiagnostic()
                 } label: {

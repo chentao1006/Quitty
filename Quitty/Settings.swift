@@ -14,6 +14,24 @@ class Settings: ObservableObject {
     private var fileWatcher: DispatchSourceFileSystemObject?
 
     static let didUpdateNotification = Notification.Name("QuittySettingsDidUpdate")
+    
+    // Captured logs for UI display
+    @Published var logs: [String] = []
+    private let maxLogLines = 100
+
+    func log(_ message: String) {
+        print("Quitty: \(message)")
+        DispatchQueue.main.async {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm:ss"
+            let timestamp = formatter.string(from: Date())
+            let line = "[\(timestamp)] \(message)"
+            self.logs.append(line)
+            if self.logs.count > self.maxLogLines {
+                self.logs.removeFirst()
+            }
+        }
+    }
 
     // MARK: - Keys
     private enum Key: String {
@@ -252,19 +270,7 @@ class Settings: ObservableObject {
 
     /// Returns true if the app at the given bundle path should be auto-quit
     func shouldQuitApp(bundlePath: String, bundleID: String?) -> Bool {
-        // Never quit system services
-        let systemPaths = [
-            "/System/Library/CoreServices/Finder.app",
-            "/System/Library/CoreServices/Spotlight.app",
-            "/System/Library/CoreServices/NotificationCenter.app",
-            "/System/Library/CoreServices/SystemUIServer.app",
-            "/System/Library/CoreServices/Dock.app",
-        ]
-        if systemPaths.contains(bundlePath) { return false }
-
-        // Never quit ourselves
-        let myBundleID = Bundle.main.bundleIdentifier ?? ""
-        if let bid = bundleID, bid == myBundleID { return false }
+        if isSystemApp(bundlePath: bundlePath, bundleID: bundleID) { return false }
 
         let isInList = excludedApps.contains(bundlePath) || excludedApps.contains(bundleID ?? "")
 
@@ -275,5 +281,44 @@ class Settings: ObservableObject {
             // Quit ONLY apps in the list
             return isInList
         }
+    }
+
+    /// Returns true if we should even bother watching this app's windows
+    func isPotentiallyRelevant(bundlePath: String?, bundleID: String?) -> Bool {
+        guard let path = bundlePath else { return false }
+        if isSystemApp(bundlePath: path, bundleID: bundleID) { return false }
+
+        let isInList = excludedApps.contains(path) || excludedApps.contains(bundleID ?? "")
+
+        if excludeBehaviour == "excludeApps" {
+            // In "Exclude from Quitting" mode, we watch everyone NOT in the list
+            return !isInList
+        } else {
+            // In "Only Quit These" mode, we ONLY watch apps in the list
+            return isInList
+        }
+    }
+
+    private func isSystemApp(bundlePath: String, bundleID: String?) -> Bool {
+        // Never quit system services
+        let systemPaths = [
+            "/System/Library/CoreServices/Finder.app",
+            "/System/Library/CoreServices/Spotlight.app",
+            "/System/Library/CoreServices/NotificationCenter.app",
+            "/System/Library/CoreServices/SystemUIServer.app",
+            "/System/Library/CoreServices/Dock.app",
+            "/System/Library/CoreServices/ControlCenter.app",
+            "/System/Library/CoreServices/WindowManager.app",
+            "/System/Library/CoreServices/TextInputMenuAgent.app",
+            "/System/Library/CoreServices/System Events.app",
+            "/usr/libexec/backboardd"
+        ]
+        if systemPaths.contains(bundlePath) { return true }
+
+        // Never quit ourselves
+        let myBundleID = Bundle.main.bundleIdentifier ?? ""
+        if let bid = bundleID, bid == myBundleID { return true }
+        
+        return false
     }
 }

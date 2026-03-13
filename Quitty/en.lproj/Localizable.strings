@@ -56,3 +56,5 @@
 "btn_diagnostic" = "Self-Diagnostic & Fix";
 "diagnostic_ok" = "System seems healthy and watching apps.";
 "diagnostic_restarting" = "Issues detected. Restarting Quitty...";
+"section_logs" = "RUNTIME LOGS";
+"btn_clear_logs" = "Clear Logs";

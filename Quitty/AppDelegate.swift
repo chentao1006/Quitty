@@ -29,19 +29,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var watcherStarted = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("applicationDidFinishLaunching started")
+        Settings.shared.log("applicationDidFinishLaunching started")
 
         // Setup menu bar icon first so the app is always visible
         setupMenuBar()
-        print("setupMenuBar done, statusItem.isVisible = \(statusItem?.isVisible ?? false)")
+        Settings.shared.log("setupMenuBar done, statusItem.isVisible = \(statusItem?.isVisible ?? false)")
 
         // Show settings on first launch or if not launch-hidden
         let settings = Settings.shared
         print("launchHidden = \(settings.launchHidden), menubarIconEnabled = \(settings.menubarIconEnabled)")
         if !settings.launchHidden {
-            print("Showing settings window...")
+            Settings.shared.log("Showing settings window...")
             showSettings()
-            print("showSettings done, window = \(settingsWindowController?.window), isVisible = \(settingsWindowController?.window?.isVisible ?? false)")
+            Settings.shared.log("showSettings done, window = \(settingsWindowController?.window), isVisible = \(settingsWindowController?.window?.isVisible ?? false)")
         }
 
         // Check accessibility permissions and start watching
@@ -60,13 +60,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func handleSettingsUpdate() {
         setupMenuBar()
+        windowWatcher.refreshAllApps()
     }
 
     func startWatcher() {
         guard !watcherStarted else { return }
         windowWatcher.start()
         watcherStarted = true
-        print("windowWatcher started")
+        Settings.shared.log("windowWatcher started")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -83,7 +84,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         // Retry starting watcher if not already started
         if !watcherStarted && AXIsProcessTrusted() {
-            print("Permissions granted! Starting watcher...")
+            Settings.shared.log("Permissions granted! Starting watcher...")
             startWatcher()
         }
         
@@ -118,6 +119,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 alert.addButton(withTitle: Settings.shared.localizedString("btn_open_settings"))
                 alert.addButton(withTitle: Settings.shared.localizedString("btn_ignore"))
 
+                // Determine context: sheet or modal
                 let targetWindow = settingsWindowController?.window
                 if let window = targetWindow, window.isVisible {
                     alert.beginSheetModal(for: window) { [weak self] response in
@@ -127,7 +129,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         }
                     }
                 } else {
-                    // Use closure-based completion instead of runModal() to avoid blocking the main thread
+                    // Using runModal() on the main thread during startup causes a hang.
+                    // Instead, we use a small delay or ensure it's not blocking applicationDidFinishLaunching.
                     DispatchQueue.main.async {
                         let response = alert.runModal()
                         self.isShowingPermissionAlert = false
