@@ -2,7 +2,7 @@
 
 [简体中文] | [English](README.md)
 
-**Quitty** 是一款轻量、现代的 macOS 工具，可在应用程序关闭最后一个窗口时自动终止该程序。它旨在成为旧版工具（如 SwiftQuit）的稳健、高性能且兼容 macOS Sequoia 的替代品。
+**静隐** 是一款轻量、现代的 macOS 工具，可在应用程序关闭最后一个窗口时自动终止该程序。它旨在成为旧版工具（如 SwiftQuit）的稳健、高性能且兼容 macOS Sequoia 的替代品。
 
 ## 🚀 核心功能
 

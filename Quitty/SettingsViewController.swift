@@ -148,7 +148,13 @@ struct AboutSettingsView: View {
             
             Spacer()
             
-            Text("© 2024-2026 Quitty Authors")
+            Link(destination: URL(string: "https://github.com/chentao1006/Quitty")!) {
+                Text(settings.localizedString("github"))
+                    .font(.body)
+                    .foregroundColor(.accentColor)
+            }
+            
+            Text("© 2026 chentao1006")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 20)

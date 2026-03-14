@@ -359,6 +359,14 @@ class WindowWatcher {
             return 
         }
 
+        // 2. Space change grace period (ignore noise for 0.8s after space change)
+        // macOS Sequoia often fires spurious "Destroyed" notifications for all windows 
+        // immediately when a space change starts.
+        if Date().timeIntervalSince(lastSpaceChangeDate) < 0.8 {
+            Settings.shared.log("Ignoring \(notification) for \(app.localizedName ?? "app") during space transition noise.")
+            return
+        }
+
         Settings.shared.log("Received \(notification) for \(app.localizedName ?? "app") (PID: \(pid))")
 
         // Electron-based apps (VS Code, Discord, etc) need more time to stabilize
@@ -570,17 +578,20 @@ class WindowWatcher {
         guard let bundleID = app.bundleIdentifier?.lowercased() else { return false }
         
         // Common Electron and VS Code variants
-        let electronIDs = [
-            "com.microsoft.vscode",
-            "com.visualstudio.code",
-            "com.antigravity",
-            "com.github.electron",
-            "com.discordapp.discord",
-            "com.tinyspeck.slackmacgap", // Slack
-            "com.hnc.discord"
+        let electronKeywords = [
+            "vscode",
+            "visualstudio",
+            "antigravity",
+            "electron",
+            "discord",
+            "slack",
+            "cursor",
+            "obsidian",
+            "linear",
+            "notion"
         ]
         
-        if electronIDs.contains(where: { bundleID.contains($0) }) {
+        if electronKeywords.contains(where: { bundleID.contains($0) }) {
             return true
         }
         
