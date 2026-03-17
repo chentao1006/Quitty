@@ -359,10 +359,10 @@ class WindowWatcher {
             return 
         }
 
-        // 2. Space change grace period (ignore noise for 0.8s after space change)
+        // 2. Space change grace period (ignore noise for 1.5s after space change)
         // macOS Sequoia often fires spurious "Destroyed" notifications for all windows 
         // immediately when a space change starts.
-        if Date().timeIntervalSince(lastSpaceChangeDate) < 0.8 {
+        if Date().timeIntervalSince(lastSpaceChangeDate) < 1.5 {
             Settings.shared.log("Ignoring \(notification) for \(app.localizedName ?? "app") during space transition noise.")
             return
         }
@@ -375,9 +375,9 @@ class WindowWatcher {
         let safetyMultiplier = isElectron ? 2.0 : 1.0
         var totalDelay = baseDelay * safetyMultiplier
         
-        if Date().timeIntervalSince(lastSpaceChangeDate) < 3.0 {
-            totalDelay = isElectron ? 5.0 : 3.5
-            Settings.shared.log("Deferring check for \(app.localizedName ?? "app") due to space change (Electron: \(isElectron))")
+        if Date().timeIntervalSince(lastSpaceChangeDate) < 5.0 {
+            totalDelay = isElectron ? 10.0 : 6.0
+            Settings.shared.log("Deferring check for \(app.localizedName ?? "app") due to recent space change (Electron: \(isElectron))")
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) { [weak self] in
@@ -403,10 +403,16 @@ class WindowWatcher {
         }
 
         // DEBOUNCE: Don't check the same app too frequently
-        if let lastCheck = lastCheckTimes[pid], Date().timeIntervalSince(lastCheck) < 0.3 {
+        lastCheckTimes[pid] = Date()
+
+        // Safety: If a space change just happened, wait significantly longer
+        if Date().timeIntervalSince(lastSpaceChangeDate) < 2.0 {
+            Settings.shared.log("Space change detected during check for \(appName). Re-scheduling with delay.")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                self?.checkAndQuit(app: app)
+            }
             return
         }
-        lastCheckTimes[pid] = Date()
 
         // AX Calls can sometimes block if an app is beachballing, but we must use background carefully
         queue.async { [weak self] in
@@ -479,6 +485,15 @@ class WindowWatcher {
 
         // Final window count check on background queue to avoid freezing Quitty
         queue.async {
+            // Safety: Check space change AGAIN on the background queue
+            if Date().timeIntervalSince(self.lastSpaceChangeDate) < 5.0 {
+                Settings.shared.log("Aborting final check for \(appName) - space change detected within 5s grace period.")
+                DispatchQueue.main.async {
+                    self.pendingQuits.removeValue(forKey: pid)
+                }
+                return
+            }
+
             let axApp = AXUIElementCreateApplication(pid)
             var windows: CFTypeRef?
             let res = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
