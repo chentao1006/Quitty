@@ -14,8 +14,12 @@ jobs:
 
       - name: Install Sparkle tools
         run: |
-          SPARKLE_URL=$(curl -s https://api.github.com/repos/sparkle-project/Sparkle/releases/latest | grep "browser_download_url" | grep "tar.xz" | head -n 1 | cut -d '"' -f 4)
+          SPARKLE_URL=$(curl -s https://api.github.com/repos/sparkle-project/Sparkle/releases/latest | jq -r '.assets[] | select(.name | endswith(".tar.xz")) | .browser_download_url' | head -n 1)
           echo "SPARKLE_URL=$SPARKLE_URL"
+          if [ -z "$SPARKLE_URL" ] || [ "$SPARKLE_URL" == "null" ]; then
+            echo "❌ Failed to fetch Sparkle URL"
+            exit 1
+          fi
           curl -L -o sparkle.tar.xz "$SPARKLE_URL"
           mkdir sparkle_dist
           tar -xf sparkle.tar.xz -C sparkle_dist
