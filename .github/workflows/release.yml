@@ -12,7 +12,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache Sparkle tools
+        id: cache-sparkle
+        uses: actions/cache@v3
+        with:
+          path: sparkle_dist
+          key: ${{ runner.os }}-sparkle-2.9.0
+
       - name: Install Sparkle tools
+        if: steps.cache-sparkle.outputs.cache-hit != 'true'
         run: |
           SPARKLE_URL=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/sparkle-project/Sparkle/releases/latest | jq -r '.assets[] | select(.name | endswith(".tar.xz")) | .browser_download_url' | head -n 1)
           echo "SPARKLE_URL=$SPARKLE_URL"

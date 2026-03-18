@@ -28,7 +28,6 @@ DerivedData
 # Project specifics
 /Release
 ExportOptions.plist
-package.sh
 RELEASE_GUIDE.md
 dist/
 sparkle_tool/
