@@ -31,3 +31,8 @@ ExportOptions.plist
 package.sh
 RELEASE_GUIDE.md
 dist/
+sparkle_tool/
+.github/workflows/release.yml
+sparkle_private.key
+sparkle.tar.xz
+release.sh

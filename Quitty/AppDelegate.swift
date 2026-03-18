@@ -12,6 +12,7 @@
 
 import Cocoa
 import ServiceManagement
+import Sparkle
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -27,6 +28,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindowController: SettingsWindowController?
     let windowWatcher = WindowWatcher()
     private var watcherStarted = false
+    
+    // Sparkle updater
+    let updaterController: SPUStandardUpdaterController
+    
+    override init() {
+        // Initialize Sparkle
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Settings.shared.log("applicationDidFinishLaunching started")
@@ -152,6 +162,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_settings"), action: #selector(showSettings), keyEquivalent: ","))
+        
+        // Add "Check for Updates"
+        let checkUpdateItem = NSMenuItem(title: Settings.shared.localizedString("menu_check_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        checkUpdateItem.target = updaterController
+        menu.addItem(checkUpdateItem)
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem?.menu = menu

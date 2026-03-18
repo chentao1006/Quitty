@@ -1,5 +1,6 @@
 "app_name" = "Quitty";
 "menu_settings" = "Settings...";
+"menu_check_updates" = "Check for Updates...";
 "menu_quit" = "Quit Quitty";
 "subtitle" = "Auto-quit apps when their last window closes";
 

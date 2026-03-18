@@ -21,7 +21,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.6</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSUIElement</key>
@@ -32,5 +32,9 @@
 	<string>Quitty needs to send quit events to applications when their last window is closed.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SUFeedURL</key>
+	<string>https://chentao1006.github.io/quitty/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>T9d+4vUpmrkAXNcwSOu7/MzSO6tIKr8JbVhYe4j0jaE=</string>
 </dict>
 </plist>

@@ -1,5 +1,6 @@
 "app_name" = "静隐";
 "menu_settings" = "设置...";
+"menu_check_updates" = "检查更新...";
 "menu_quit" = "退出";
 "subtitle" = "在最后一个窗口关闭时自动退出应用";
 

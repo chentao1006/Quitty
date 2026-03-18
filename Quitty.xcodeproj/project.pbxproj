@@ -15,6 +15,7 @@
 		A1000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000006 /* Assets.xcassets */; };
 		A1000009 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A9000000 /* Localizable.strings */; };
 		A1000010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A9000010 /* InfoPlist.strings */; };
+		C6D775CE2F6AF0B5005D9982 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = C6D775CD2F6AF0B5005D9982 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C6D775CE2F6AF0B5005D9982 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,6 +119,9 @@
 				Base,
 			);
 			mainGroup = A4000000;
+			packageReferences = (
+				C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = A4000002 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -303,8 +308,8 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = YL5Z93AN2M;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = U2NEAJ73J2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Quitty/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Quitty;
@@ -314,7 +319,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ct106.quitty;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -331,8 +336,8 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = YL5Z93AN2M;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = U2NEAJ73J2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Quitty/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Quitty;
@@ -342,7 +347,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ct106.quitty;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -372,6 +377,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C6D775CD2F6AF0B5005D9982 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A7000000 /* Project object */;
 }
