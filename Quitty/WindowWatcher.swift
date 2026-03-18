@@ -568,8 +568,8 @@ class WindowWatcher {
             guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { continue }
             
             // Layer check: Most standard windows are Layer 0.
-            // We allow up to Layer 50 to catch specialized UI/Terminal windows.
-            guard let layer = window[kCGWindowLayer as String] as? Int, (0...50).contains(layer) else { continue }
+            // We allow up to Layer 100 to catch specialized UI/Terminal windows and cross-platform toolkits.
+            guard let layer = window[kCGWindowLayer as String] as? Int, (0...100).contains(layer) else { continue }
             
             // Alpha check
             let alpha = window[kCGWindowAlpha as String] as? Double ?? 0
@@ -578,11 +578,6 @@ class WindowWatcher {
             let bounds = window[kCGWindowBounds as String] as? [String: Any]
             let width = bounds?["Width"] as? CGFloat ?? 0
             let height = bounds?["Height"] as? CGFloat ?? 0
-
-            // Log suspected ghosts that we are skipping
-            if (width > 40 && height > 40) && (alpha < 0.01 || layer > 50) {
-                Settings.shared.log("   -> [isActualWindowPresent] Skipping suspected ghost: PID=\(pid), Layer=\(layer), Alpha=\(alpha), Size=\(Int(width))x\(Int(height))")
-            }
 
             if alpha < 0.01 { continue }
             if width <= 40 || height <= 40 { continue }
@@ -597,26 +592,40 @@ class WindowWatcher {
             
             if !trimmedName.isEmpty { return true }
             
-            // UNNAMED WINDOW LOGIC
-            if width < 150 || height < 150 { continue }
+            // UNNAMED WINDOW LOGIC (Common in Electron, Java, Flutter, Terminals, etc.)
             
-            // Universal Ghost Sizes
+            // Absolute minimum size for an unnamed window to be considered potentially real.
+            // Lowered to 80x80 to catch smaller Terminal windows while avoiding micro-artifacts.
+            if width < 80 || height < 80 { continue }
+            
+            // Universal Ghost Sizes (known non-visible windows from various apps)
             let isGhostSize = (abs(width - 500) < 30 && abs(height - 500) < 30) || 
                               (abs(width - 600) < 30 && abs(height - 600) < 30) ||
                               (abs(width - 692) < 25 && abs(height - 413) < 25) ||
+                              (abs(width - 715) < 30 && abs(height - 364) < 30) || // Screen Sharing ghost
+                              (abs(width - 735) < 30 && abs(height - 424) < 30) || // Sequel Ace ghost
                               (abs(width - 960) < 60 && abs(height - 660) < 60) ||
                               (abs(width - 1040) < 20 && abs(height - 1040) < 20)
+            
             if isGhostSize { continue }
             
             let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
             if !isOnScreen {
                 // Window on another space
-                if width > 400 && height > 400 {
+                // Relaxed threshold (110x110) for cross-platform/special apps.
+                let threshold: CGFloat = isElectron ? 110 : 250
+                if width > threshold && height > threshold {
                     Settings.shared.log("   -> [isActualWindowPresent] Found window for \(pid) on another space (\(Int(width))x\(Int(height)))")
                     return true
                 }
             } else {
-                // Unnamed but onscreen and large? Probably a background panel we should skip if AX said 0.
+                // Onscreen unnamed window
+                // Relaxed threshold (180x180) for cross-platform/special apps.
+                let threshold: CGFloat = isElectron ? 180 : 350
+                if width > threshold && height > threshold {
+                    Settings.shared.log("   -> [isActualWindowPresent] Found unnamed onscreen window for \(pid) (\(Int(width))x\(Int(height)))")
+                    return true
+                }
                 continue
             }
         }
@@ -624,10 +633,25 @@ class WindowWatcher {
     }
 
     private func isElectronApp(_ app: NSRunningApplication) -> Bool {
-        guard let bundleID = app.bundleIdentifier?.lowercased() else { return false }
-        let electronKeywords = ["vscode", "visualstudio", "antigravity", "electron", "discord", "slack", "cursor", "obsidian", "linear", "notion", "term"]
-        if electronKeywords.contains(where: { bundleID.contains($0) }) { return true }
-        if let path = app.bundleURL?.path.lowercased(), path.contains("electron") { return true }
+        let appName = (app.localizedName ?? "").lowercased()
+        let bundleID = (app.bundleIdentifier ?? "").lowercased()
+        
+        // Keywords for apps that use cross-platform frameworks (Electron, Java, etc.)
+        // or terminal emulators. These often have unnamed windows or non-standard AX trees.
+        let specialKeywords = [
+            "vscode", "visualstudio", "antigravity", "electron", "discord", 
+            "slack", "cursor", "obsidian", "linear", "notion", "term", 
+            "java", "jetbrains", "intellij", "warp", "termora", "tabby", 
+            "wezterm", "alacritty"
+        ]
+        
+        if specialKeywords.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
+            return true
+        }
+        
+        if let path = app.bundleURL?.path.lowercased(), path.contains("electron") {
+            return true
+        }
         return false
     }
 }
