@@ -33,8 +33,10 @@ xcodebuild archive \
     -scheme "${SCHEME}" \
     -configuration Release \
     -archivePath "${ARCHIVE_PATH}" \
-    -allowProvisioningUpdates \
-    CODE_SIGN_STYLE=Automatic \
+    CODE_SIGN_STYLE=Manual \
+    CODE_SIGN_IDENTITY="Developer ID Application" \
+    PROVISIONING_PROFILE_SPECIFIER="" \
+    AD_HOC_CODE_SIGNING_ALLOWED=YES \
     ENABLE_HARDENED_RUNTIME=YES
 
 # 3. Export Archive
