@@ -192,10 +192,19 @@ struct AboutSettingsView: View {
             
             Spacer()
             
-            Link(destination: URL(string: "https://github.com/chentao1006/Quitty")!) {
-                Text(settings.localizedString("github"))
-                    .font(.body)
-                    .foregroundColor(.accentColor)
+            VStack(spacing: 12) {
+                Button(settings.localizedString("menu_check_updates")) {
+                    if let delegate = NSApplication.shared.delegate as? AppDelegate {
+                        delegate.updaterController.checkForUpdates(nil)
+                    }
+                }
+                .buttonStyle(.bordered)
+                
+                Link(destination: URL(string: "https://github.com/chentao1006/Quitty")!) {
+                    Text(settings.localizedString("github"))
+                        .font(.body)
+                        .foregroundColor(.accentColor)
+                }
             }
             
             Text("© 2026 chentao1006")
@@ -356,6 +365,18 @@ struct DataSettingsView: View {
     @ObservedObject var settings: Settings
     
     var body: some View {
+        #if os(macOS)
+        if #available(macOS 13.0, *) {
+            formBody.formStyle(.grouped)
+        } else {
+            formBody
+        }
+        #else
+        formBody
+        #endif
+    }
+    
+    private var formBody: some View {
         Form {
             Section {
                 Toggle(settings.localizedString("file_sync"), isOn: $settings.fileSyncEnabled)
@@ -378,7 +399,7 @@ struct DataSettingsView: View {
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 8) {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: 0) {
@@ -404,7 +425,7 @@ struct DataSettingsView: View {
                                     .id("logBottom")
                             }
                         }
-                        .frame(height: 250) // Fixed height to prevent window overflow
+                        .frame(minHeight: 200, maxHeight: 300)
                         .background(Color(NSColor.textBackgroundColor))
                         .cornerRadius(4)
                         .overlay(
@@ -428,6 +449,7 @@ struct DataSettingsView: View {
                         .font(.caption)
                     }
                 }
+                .padding(.vertical, 4)
             } header: {
                 Text(settings.localizedString("section_logs"))
             }

@@ -3,11 +3,11 @@
 //  AppDelegate.swift
 //  Quitty
 //
-//  A modern replacement for SwiftQuit, compatible with macOS Sequoia (15+)
+//  A modern replacement for SwiftQuit, compatible with macOS Tahoe (16+)
 //  Automatically quits macOS apps when their last window is closed.
 //
 //  Uses raw AXObserver APIs directly (no Swindler/AXSwift library dependencies)
-//  which broke on macOS Sequoia.
+//  which broke on macOS Tahoe.
 //
 
 import Cocoa

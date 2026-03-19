@@ -2,12 +2,12 @@
 
 [English] | [简体中文](README_zh.md)
 
-**Quitty** is a lightweight, modern macOS utility that automatically terminates applications when their last window is closed. It is designed to be a robust, high-performance, and macOS Sequoia-compatible alternative to older tools like SwiftQuit.
+**Quitty** is a lightweight, modern macOS utility that automatically terminates applications when their last window is closed. It is designed to be a robust, high-performance, and macOS Tahoe-compatible alternative to older tools like SwiftQuit.
 
 ## 🚀 Key Features
 
 -   **Automatic Termination**: Quits apps instantly (or with a delay) when you close their last window.
--   **macOS Sequoia Ready**: Uses raw Accessibility API (`AXObserver`) for maximum compatibility with macOS 15.
+-   **macOS Tahoe Ready**: Uses raw Accessibility API (`AXObserver`) for maximum compatibility with macOS 16.
 -   **Smart Filtering**:
     *   **Include Mode**: Only quit applications in your specific list.
     *   **Exclude Mode**: Quit all applications except for those you want to keep running.
@@ -18,7 +18,12 @@
 
 ## 🛠 Installation
 
-You can build and install Quitty directly from source using the provided script.
+### 1. Download Latest Release (Recommended)
+Download the latest version as a DMG file from the [Releases Page](https://github.com/chentao1006/Quitty/releases). 
+Simply open `Quitty.dmg` and drag **Quitty** to your `Applications` folder.
+
+### 2. Build from Source
+You can also build and install Quitty directly from source using the provided script.
 
 1.  Clone this repository to your local machine.
 2.  Open Terminal and navigate to the project directory.

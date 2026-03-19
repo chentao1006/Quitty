@@ -187,7 +187,7 @@ class WindowWatcher {
 
     @objc private func appLaunched(_ notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        // For newly launched apps, give them a moment to initialize their accessibility tree on Sequoia
+        // For newly launched apps, give them a moment to initialize their accessibility tree on Tahoe
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.watchApp(app)
         }
