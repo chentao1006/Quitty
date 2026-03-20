@@ -8,7 +8,7 @@
             <sparkle:version>9</sparkle:version>
             <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://chentao1006.github.io/Quitty/Quitty.dmg" length="3743770" type="application/octet-stream" sparkle:edSignature="OAyJRaUCufQztglQDfY8oCmQWFf9Uj++9Nsj9ifVmf/qAFGQKBO9qGwucZz7W9etL34I4GX9IFI9MlW0pzz8Cg=="/>
+            <enclosure url="https://github.com/chentao1006/quitty/releases/download/v1.0.6/Quitty.dmg" length="3743770" type="application/octet-stream" sparkle:edSignature="OAyJRaUCufQztglQDfY8oCmQWFf9Uj++9Nsj9ifVmf/qAFGQKBO9qGwucZz7W9etL34I4GX9IFI9MlW0pzz8Cg=="/>
         </item>
         <item>
             <title>1.0.6</title>
@@ -16,7 +16,7 @@
             <sparkle:version>8</sparkle:version>
             <sparkle:shortVersionString>1.0.6</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://chentao1006.github.io/Quitty/Quitty.dmg" length="3743410" type="application/octet-stream" sparkle:edSignature="Y8A8OriYLnTz0kvkjo9Utftva3TOCNXKHWhlbi8RC20Iv3WTHg2/uxzPAEXCONrA3ElkC4ATvxszFR4wT/SfDw=="/>
+            <enclosure url="https://github.com/chentao1006/quitty/releases/download/v1.0.6/Quitty.dmg" length="3743410" type="application/octet-stream" sparkle:edSignature="Y8A8OriYLnTz0kvkjo9Utftva3TOCNXKHWhlbi8RC20Iv3WTHg2/uxzPAEXCONrA3ElkC4ATvxszFR4wT/SfDw=="/>
         </item>
     </channel>
 </rss>

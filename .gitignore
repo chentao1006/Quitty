@@ -35,5 +35,5 @@ sparkle_private.key
 sparkle.tar.xz
 
 # Release script (local use only)
-release.sh
-package.sh
+# release.sh
+# package.sh

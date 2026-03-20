@@ -33,7 +33,7 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUFeedURL</key>
-	<string>https://chentao1006.github.io/Quitty/appcast.xml</string>
+	<string>https://quitty.ct106.com/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>T9d+4vUpmrkAXNcwSOu7/MzSO6tIKr8JbVhYe4j0jaE=</string>
 </dict>
