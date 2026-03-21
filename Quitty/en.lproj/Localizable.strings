@@ -15,9 +15,12 @@
 "launch_at_login" = "Launch at login";
 "language" = "Language";
 "section_sync" = "SYNC";
-"file_sync" = "File Sync";
-"sync_path" = "Sync Path:";
-"btn_choose" = "Choose...";
+"icloud_sync" = "iCloud Sync";
+"icloud_sync_desc" = "Sync settings across your devices using iCloud Key-Value store.";
+
+"section_backup" = "BACKUP & RESTORE";
+"btn_export" = "Export Settings...";
+"btn_import" = "Import Settings...";
 
 "lang_system" = "System Default";
 "lang_en" = "English";

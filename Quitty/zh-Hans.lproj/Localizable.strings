@@ -15,9 +15,12 @@
 "launch_at_login" = "登录时启动";
 "language" = "语言";
 "section_sync" = "同步";
-"file_sync" = "文件同步";
-"sync_path" = "同步文件路径:";
-"btn_choose" = "选择...";
+"icloud_sync" = "iCloud 同步";
+"icloud_sync_desc" = "使用 iCloud 键值存储在您的设备之间同步设置。";
+
+"section_backup" = "备份与还原";
+"btn_export" = "导出设置...";
+"btn_import" = "导入设置...";
 
 "lang_system" = "跟随系统";
 "lang_en" = "English";

@@ -379,23 +379,27 @@ struct DataSettingsView: View {
     private var formBody: some View {
         Form {
             Section {
-                Toggle(settings.localizedString("file_sync"), isOn: $settings.fileSyncEnabled)
-                
-                if settings.fileSyncEnabled {
-                    HStack {
-                        Text(settings.localizedString("sync_path"))
-                        Text(settings.syncFilePath)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                        Button(settings.localizedString("btn_choose")) {
-                            chooseSyncPath()
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(settings.localizedString("icloud_sync"), isOn: $settings.iCloudSyncEnabled)
+                    Text(settings.localizedString("icloud_sync_desc"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             } header: {
                 Text(settings.localizedString("section_sync"))
+            }
+
+            Section {
+                HStack {
+                    Button(settings.localizedString("btn_export")) {
+                        exportSettings()
+                    }
+                    Button(settings.localizedString("btn_import")) {
+                        importSettings()
+                    }
+                }
+            } header: {
+                Text(settings.localizedString("section_backup"))
             }
 
             Section {
@@ -455,16 +459,38 @@ struct DataSettingsView: View {
             }
         }
     }
-    
-    private func chooseSyncPath() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = URL(fileURLWithPath: settings.syncFilePath)
+
+    private func exportSettings() {
+        let savePanel = NSSavePanel()
+        if #available(macOS 11.0, *) {
+            savePanel.allowedContentTypes = [.json]
+        } else {
+            savePanel.allowedFileTypes = ["json"]
+        }
+        savePanel.nameFieldStringValue = "quitty_settings.json"
         
-        if panel.runModal() == .OK, let url = panel.url {
-            settings.syncFilePath = url.path
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            if let data = settings.exportToJSON() {
+                try? data.write(to: url)
+            }
+        }
+    }
+
+    private func importSettings() {
+        let openPanel = NSOpenPanel()
+        if #available(macOS 11.0, *) {
+            openPanel.allowedContentTypes = [.json]
+        } else {
+            openPanel.allowedFileTypes = ["json"]
+        }
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        
+        if openPanel.runModal() == .OK, let url = openPanel.url {
+            if let data = try? Data(contentsOf: url) {
+                _ = settings.importFromJSON(data: data)
+            }
         }
     }
 }

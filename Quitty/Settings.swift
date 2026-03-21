@@ -11,7 +11,6 @@ import Cocoa
 class Settings: ObservableObject {
     static let shared = Settings()
     private let defaults = UserDefaults.standard
-    private var fileWatcher: DispatchSourceFileSystemObject?
 
     static let didUpdateNotification = Notification.Name("QuittySettingsDidUpdate")
     
@@ -41,15 +40,11 @@ class Settings: ObservableObject {
         case excludedApps       = "excludedApps"
         case launchAtLogin      = "launchAtLogin"
         case appLanguage        = "appLanguage"
-        case fileSyncEnabled    = "fileSyncEnabled"
-        case syncFilePath       = "syncFilePath"
+        case iCloudSyncEnabled  = "iCloudSyncEnabled"
     }
 
     init() {
-        if fileSyncEnabled {
-            startWatchingFile()
-            loadFromFile() // Initial load
-        }
+        setupICloudSync()
     }
 
     // MARK: - Localization
@@ -69,30 +64,91 @@ class Settings: ObservableObject {
         return NSLocalizedString(key, comment: "")
     }
 
-    // MARK: - File Sync Logic
+    // MARK: - iCloud Sync Logic
 
-    private var defaultSyncFolderPath: String {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let iCloudPath = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/Quitty")
+    private func setupICloudSync() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(iCloudStoreDidChange(_:)),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: NSUbiquitousKeyValueStore.default
+        )
+        NSUbiquitousKeyValueStore.default.synchronize()
         
-        // Try to create the folder in iCloud Drive, or fallback to Documents
-        do {
-            try FileManager.default.createDirectory(at: iCloudPath, withIntermediateDirectories: true)
-            return iCloudPath.path
-        } catch {
-            let docs = home.appendingPathComponent("Documents/Quitty")
-            _ = try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-            return docs.path
+        if iCloudSyncEnabled {
+            loadFromICloud()
         }
     }
 
-    private var settingsFileURL: URL {
-        return URL(fileURLWithPath: syncFilePath).appendingPathComponent("settings.json")
+    @objc private func iCloudStoreDidChange(_ notification: Notification) {
+        guard iCloudSyncEnabled else { return }
+        
+        DispatchQueue.main.async {
+            self.loadFromICloud()
+            self.log("iCloud data changed externally, settings updated")
+        }
     }
 
-    func saveToFile() {
-        guard fileSyncEnabled else { return }
-        let fileURL = settingsFileURL
+    func saveToICloud() {
+        guard iCloudSyncEnabled else { return }
+        let store = NSUbiquitousKeyValueStore.default
+        
+        store.set(launchHidden, forKey: Key.launchHidden.rawValue)
+        store.set(menubarIconEnabled, forKey: Key.menubarIconEnabled.rawValue)
+        store.set(excludeBehaviour, forKey: Key.excludeBehaviour.rawValue)
+        store.set(excludedApps, forKey: Key.excludedApps.rawValue)
+        store.set(appLanguage, forKey: Key.appLanguage.rawValue)
+        
+        store.synchronize()
+        log("Settings saved to iCloud")
+    }
+
+    func loadFromICloud() {
+        guard iCloudSyncEnabled else { return }
+        let store = NSUbiquitousKeyValueStore.default
+        
+        var changed = false
+        
+        if let v = store.object(forKey: Key.launchHidden.rawValue) as? Bool {
+            if v != launchHidden {
+                defaults.set(v, forKey: Key.launchHidden.rawValue)
+                changed = true
+            }
+        }
+        if let v = store.object(forKey: Key.menubarIconEnabled.rawValue) as? Bool {
+            if v != menubarIconEnabled {
+                defaults.set(v, forKey: Key.menubarIconEnabled.rawValue)
+                changed = true
+            }
+        }
+        if let v = store.string(forKey: Key.excludeBehaviour.rawValue) {
+            if v != excludeBehaviour {
+                defaults.set(v, forKey: Key.excludeBehaviour.rawValue)
+                changed = true
+            }
+        }
+        if let v = store.array(forKey: Key.excludedApps.rawValue) as? [String] {
+            if v != excludedApps {
+                defaults.set(v, forKey: Key.excludedApps.rawValue)
+                changed = true
+            }
+        }
+        if let v = store.string(forKey: Key.appLanguage.rawValue) {
+            if v != appLanguage {
+                defaults.set(v, forKey: Key.appLanguage.rawValue)
+                changed = true
+            }
+        }
+        
+        if changed {
+            objectWillChange.send()
+            NotificationCenter.default.post(name: Settings.didUpdateNotification, object: nil)
+        }
+    }
+
+    // MARK: - Import/Export
+
+    func exportToJSON() -> Data? {
         let data: [String: Any] = [
             Key.launchHidden.rawValue: launchHidden,
             Key.menubarIconEnabled.rawValue: menubarIconEnabled,
@@ -100,105 +156,48 @@ class Settings: ObservableObject {
             Key.excludedApps.rawValue: excludedApps,
             Key.appLanguage.rawValue: appLanguage
         ]
-        
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
-            try jsonData.write(to: fileURL)
-            print("Settings saved to file: \(fileURL.path)")
-        } catch {
-            print("Error saving to file: \(error)")
-        }
+        return try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
     }
 
-    func loadFromFile() {
-        guard fileSyncEnabled else { return }
-        let fileURL = settingsFileURL
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        
+    func importFromJSON(data: Data) -> Bool {
         do {
-            let data = try Data(contentsOf: fileURL)
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                // Update local defaults without triggering save loop
-                if let v = json[Key.launchHidden.rawValue] as? Bool { defaults.set(v, forKey: Key.launchHidden.rawValue) }
-                if let v = json[Key.menubarIconEnabled.rawValue] as? Bool { defaults.set(v, forKey: Key.menubarIconEnabled.rawValue) }
-                if let v = json[Key.excludeBehaviour.rawValue] as? String { defaults.set(v, forKey: Key.excludeBehaviour.rawValue) }
-                if let v = json[Key.excludedApps.rawValue] as? [String] { defaults.set(v, forKey: Key.excludedApps.rawValue) }
-                if let v = json[Key.appLanguage.rawValue] as? String { defaults.set(v, forKey: Key.appLanguage.rawValue) }
+                objectWillChange.send()
                 
-                print("Settings loaded from file: \(fileURL.path)")
+                if let v = json[Key.launchHidden.rawValue] as? Bool { 
+                    defaults.set(v, forKey: Key.launchHidden.rawValue) 
+                }
+                if let v = json[Key.menubarIconEnabled.rawValue] as? Bool { 
+                    defaults.set(v, forKey: Key.menubarIconEnabled.rawValue) 
+                }
+                if let v = json[Key.excludeBehaviour.rawValue] as? String { 
+                    defaults.set(v, forKey: Key.excludeBehaviour.rawValue) 
+                }
+                if let v = json[Key.excludedApps.rawValue] as? [String] { 
+                    defaults.set(v, forKey: Key.excludedApps.rawValue) 
+                }
+                if let v = json[Key.appLanguage.rawValue] as? String { 
+                    defaults.set(v, forKey: Key.appLanguage.rawValue) 
+                }
+                
+                saveToICloud()
                 NotificationCenter.default.post(name: Settings.didUpdateNotification, object: nil)
+                return true
             }
         } catch {
-            print("Error loading from file: \(error)")
+            log("Error importing settings: \(error)")
         }
-    }
-
-    private func startWatchingFile() {
-        fileWatcher?.cancel()
-        
-        let fileURL = settingsFileURL
-        let path = fileURL.path
-        let fileDescriptor = open(path, O_EVTONLY)
-        guard fileDescriptor != -1 else { return }
-        
-        fileWatcher = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fileDescriptor, eventMask: .write, queue: .main)
-        fileWatcher?.setEventHandler { [weak self] in
-            print("External file change detected")
-            self?.loadFromFile()
-        }
-        fileWatcher?.setCancelHandler {
-            close(fileDescriptor)
-        }
-        fileWatcher?.resume()
+        return false
     }
 
     // MARK: - Properties
-
-    var fileSyncEnabled: Bool {
-        get { defaults.bool(forKey: Key.fileSyncEnabled.rawValue) }
-        set { 
-            objectWillChange.send()
-            defaults.set(newValue, forKey: Key.fileSyncEnabled.rawValue)
-            if newValue {
-                if FileManager.default.fileExists(atPath: settingsFileURL.path) {
-                    loadFromFile()
-                } else {
-                    saveToFile() // Initial push if no file exists
-                }
-                startWatchingFile()
-            } else {
-                fileWatcher?.cancel()
-            }
-        }
-    }
-
-    var syncFilePath: String {
-        get { defaults.string(forKey: Key.syncFilePath.rawValue) ?? defaultSyncFolderPath }
-        set { 
-            objectWillChange.send()
-            defaults.set(newValue, forKey: Key.syncFilePath.rawValue)
-            if fileSyncEnabled {
-                startWatchingFile()
-                saveToFile()
-            }
-        }
-    }
-
-    var appLanguage: String {
-        get { defaults.string(forKey: Key.appLanguage.rawValue) ?? "system" }
-        set { 
-            objectWillChange.send()
-            defaults.set(newValue, forKey: Key.appLanguage.rawValue)
-            saveToFile()
-        }
-    }
 
     var launchHidden: Bool {
         get { defaults.object(forKey: Key.launchHidden.rawValue) as? Bool ?? false }
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.launchHidden.rawValue)
-            saveToFile()
+            saveToICloud()
         }
     }
 
@@ -207,7 +206,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.menubarIconEnabled.rawValue)
-            saveToFile()
+            saveToICloud()
         }
     }
 
@@ -216,7 +215,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.excludeBehaviour.rawValue)
-            saveToFile()
+            saveToICloud()
         }
     }
 
@@ -225,7 +224,28 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.excludedApps.rawValue)
-            saveToFile()
+            saveToICloud()
+        }
+    }
+
+    var appLanguage: String {
+        get { defaults.string(forKey: Key.appLanguage.rawValue) ?? "system" }
+        set { 
+            objectWillChange.send()
+            defaults.set(newValue, forKey: Key.appLanguage.rawValue)
+            saveToICloud()
+        }
+    }
+
+    var iCloudSyncEnabled: Bool {
+        get { defaults.bool(forKey: Key.iCloudSyncEnabled.rawValue) }
+        set {
+            objectWillChange.send()
+            defaults.set(newValue, forKey: Key.iCloudSyncEnabled.rawValue)
+            if newValue {
+                saveToICloud()
+                NSUbiquitousKeyValueStore.default.synchronize()
+            }
         }
     }
 
