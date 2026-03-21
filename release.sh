@@ -74,10 +74,16 @@ if command -v gh >/dev/null 2>&1; then
     # DMG is the primary asset
     ASSETS=("${RESULT_DIR}/Quitty.dmg")
     
+    # If re-releasing the same version, we need to delete the old one first
+    echo "🧹 Removing existing release and tag if they exist..."
+    gh release delete "v$NEW_VERSION" --yes 2>/dev/null || true
+    git push origin --delete "v$NEW_VERSION" 2>/dev/null || true
+    git tag -d "v$NEW_VERSION" 2>/dev/null || true
+
     gh release create "v$NEW_VERSION" \
         "${ASSETS[@]}" \
         --title "Release v$NEW_VERSION" \
-        --notes "Automatic local release of version $NEW_VERSION"
+        --notes "Automatic local release of version $NEW_VERSION (Build $NEW_BUILD)"
     
     if [ $? -eq 0 ]; then
         echo "🎉 Release completed successfully!"
