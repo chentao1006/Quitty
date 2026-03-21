@@ -59,9 +59,6 @@ xcodebuild archive \
     -scheme "${SCHEME}" \
     -configuration Release \
     -archivePath "${ARCHIVE_PATH}" \
-    CODE_SIGN_STYLE=Manual \
-    CODE_SIGN_IDENTITY="Developer ID Application" \
-    PROVISIONING_PROFILE_SPECIFIER="" \
     AD_HOC_CODE_SIGNING_ALLOWED=YES \
     ENABLE_HARDENED_RUNTIME=YES
 
