@@ -65,6 +65,10 @@ Unlike some tools that rely on high-level frameworks which broke in recent macOS
 -   **Safety First**: If the Accessibility API fails to return a valid window count, Quitty will abort the quit process rather than risk "killing" an app that might still have active windows.
 -   **Development Tools**: It is recommended to add IDEs (like Xcode, VS Code) to the exclusion list to prevent unexpected closures during compilation or background tasks.
 
+## 📝 Disclaimer
+
+Due to macOS security mechanisms and the fact that each app may use its own window management and technical implementation, Quitty cannot guarantee to fully quit every application in all scenarios. We always follow a conservative principle to avoid quitting apps that are still in use, but 100% accuracy cannot be guaranteed. If you experience data loss or software corruption while using Quitty, we do not take responsibility. If you encounter apps that cannot be quit or are quit incorrectly, please submit an issue ([submit here](https://github.com/chentao1006/quitty/issues)) and I will try to investigate when possible. Thank you for your understanding and support!
+
 ## 🛡 License
 
 This project is provided "as is" under the MIT License.

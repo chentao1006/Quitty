@@ -103,6 +103,36 @@
         </div>
     </section>
 
+    <!-- 免责声明声明 -->
+    <section class="disclaimer">
+        <style>
+            .disclaimer {
+                padding: 1.5em 0;
+                margin-bottom: 0.5em;
+                border-top: 1px solid #ffe58f;
+                background: #fffbe6;
+                color: #664d03;
+                transition: background 0.3s, color 0.3s;
+            }
+            .disclaimer a { color: #b8860b; text-decoration: underline; }
+            @media (prefers-color-scheme: dark) {
+                .disclaimer {
+                    background: #23210a;
+                    color: #ffe58f;
+                    border-top: 1px solid #b8860b;
+                }
+                .disclaimer a { color: #ffe58f; }
+            }
+        </style>
+        <div class="container">
+            <div id="disclaimer-zh">
+                <strong>免责声明：</strong>由于 macOS 的安全机制限制，以及各个应用可能采用了不同的窗口管理和技术实现，Quitty（静隐）无法保证对所有应用都能完全实现自动退出功能。我们始终遵循保守原则，尽量避免误退出正在使用的应用，但仍无法做到 100% 避免误操作。如果在使用过程中出现数据丢失或软件损坏，Quitty 概不负责，敬请谅解。如遇到无法退出或误退出的情况，欢迎提交 issue（<a href="https://github.com/chentao1006/quitty/issues" target="_blank">点击这里提交</a>），我会在有空时尽力修复。感谢您的理解与支持！
+            </div>
+            <div id="disclaimer-en" style="display:none">
+                <strong>Disclaimer:</strong> Due to macOS security mechanisms and the fact that each app may use its own window management and technical implementation, Quitty cannot guarantee to fully quit every application in all scenarios. We always follow a conservative principle to avoid quitting apps that are still in use, but 100% accuracy cannot be guaranteed. If you experience data loss or software corruption while using Quitty, we do not take responsibility. If you encounter apps that cannot be quit or are quit incorrectly, please submit an issue (<a href="https://github.com/chentao1006/quitty/issues" target="_blank">submit here</a>) and I will try to investigate when possible. Thank you for your understanding and support!
+            </div>
+        </div>
+    </section>
     <footer class="footer">
         <div class="container">
             <div class="footer-top">
@@ -200,6 +230,14 @@
             document.title = i18n[currentLang].page_title;
             document.getElementById('lang-toggle').innerText = currentLang === 'zh' ? 'EN' : '中文';
             document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+            // 切换免责声明
+            if (currentLang === 'zh') {
+                document.getElementById('disclaimer-zh').style.display = '';
+                document.getElementById('disclaimer-en').style.display = 'none';
+            } else {
+                document.getElementById('disclaimer-zh').style.display = 'none';
+                document.getElementById('disclaimer-en').style.display = '';
+            }
         }
 
         document.getElementById('lang-toggle').addEventListener('click', () => {
