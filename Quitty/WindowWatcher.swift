@@ -503,7 +503,7 @@ class WindowWatcher {
             
             if Date().timeIntervalSince(self.lastSpaceChangeDate) < lockTime {
                 Settings.shared.log("Space transition still active (\(max(0, Int(lockTime - Date().timeIntervalSince(self.lastSpaceChangeDate))))s remaining). Postponing final check for \(appName).")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
                     guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
                     self.pendingQuits.removeValue(forKey: pid)
                     self.checkAndQuit(app: app)
@@ -600,35 +600,48 @@ class WindowWatcher {
             
             // Universal Ghost Sizes (known non-visible windows from various apps)
             // We are now much more precise with these to avoid catching real windows.
-            let isGhostSize = (abs(width - 715) < 5 && abs(height - 364) < 5) || // Screen Sharing ghost
-                              (abs(width - 735) < 5 && abs(height - 424) < 5) || // Sequel Ace ghost
+            // Removed specific screensharing ghost check as it might conflict with real windows.
+            let isGhostSize = (abs(width - 735) < 3 && abs(height - 424) < 3) || // Sequel Ace ghost
                               (abs(width - 500) < 2 && abs(height - 500) < 2) || // Generic toolkit ghost
-                              (abs(width - 600) < 2 && abs(height - 600) < 2)    // Generic toolkit ghost
+                              (abs(width - 1040) < 2 && abs(height - 1040) < 2)  // Java ghost
             
-            if isGhostSize { continue }
+            if isGhostSize { 
+                continue 
+            }
             
             let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
             if !isOnScreen {
                 // Window on another space
                 // Relaxed threshold for cross-platform/special apps.
-                // We are even MORE suspicious of unnamed windows on other spaces if AX said 0,
-                // but we must not be too aggressive.
-                let threshold: CGFloat = isElectron ? 60 : 120
+                let threshold: CGFloat = isElectron ? 40 : 100
                 if width > threshold && height > threshold {
-                    Settings.shared.log("   -> [isActualWindowPresent] Found unnamed window for \(pid) on another space (\(Int(width))x\(Int(height)))")
+                    Settings.shared.log("   -> Found unnamed window for \(pid) on another space (\(Int(width))x\(Int(height)))")
                     return true
                 }
             } else {
                 // Onscreen unnamed window
                 // Relaxed threshold for cross-platform/special apps.
-                let threshold: CGFloat = isElectron ? 60 : 100
+                let threshold: CGFloat = isElectron ? 40 : 80
                 if width > threshold && height > threshold {
-                    Settings.shared.log("   -> [isActualWindowPresent] Found unnamed onscreen window for \(pid) (\(Int(width))x\(Int(height)))")
+                    Settings.shared.log("   -> Found unnamed onscreen window for \(pid) (\(Int(width))x\(Int(height)))")
                     return true
                 }
                 continue
             }
         }
+        
+        // Diagnose why we found nothing
+        if isElectron || pid_t(0) == 0 { // Just a trace for now
+             let appName = NSRunningApplication(processIdentifier: pid)?.localizedName ?? "\(pid)"
+             let count = windowList.filter { (window) -> Bool in
+                 guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { return false }
+                 return true
+             }.count
+             if count > 0 {
+                 Settings.shared.log("   -> [isActualWindowPresent] Ignored \(count) windows for \(appName) that didn't meet criteria.")
+             }
+        }
+
         return false
     }
 
