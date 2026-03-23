@@ -604,6 +604,8 @@ class WindowWatcher {
                               (abs(width - 692) < 25 && abs(height - 413) < 25) ||
                               (abs(width - 715) < 30 && abs(height - 364) < 30) || // Screen Sharing ghost
                               (abs(width - 735) < 30 && abs(height - 424) < 30) || // Sequel Ace ghost
+                              (abs(width - 1378) < 10 && abs(height - 870) < 10) || // Screen Sharing background
+                              (abs(width - 1920) < 5 && abs(height - 1080) < 5) || // Standard screen size ghost
                               (abs(width - 960) < 60 && abs(height - 660) < 60) ||
                               (abs(width - 1040) < 20 && abs(height - 1040) < 20)
             
@@ -613,7 +615,8 @@ class WindowWatcher {
             if !isOnScreen {
                 // Window on another space
                 // Relaxed threshold (110x110) for cross-platform/special apps.
-                let threshold: CGFloat = isElectron ? 110 : 250
+                // We are even MORE suspicious of unnamed windows on other spaces if AX said 0.
+                let threshold: CGFloat = isElectron ? 180 : 400
                 if width > threshold && height > threshold {
                     Settings.shared.log("   -> [isActualWindowPresent] Found window for \(pid) on another space (\(Int(width))x\(Int(height)))")
                     return true
@@ -642,7 +645,7 @@ class WindowWatcher {
             "vscode", "visualstudio", "antigravity", "electron", "discord", 
             "slack", "cursor", "obsidian", "linear", "notion", "term", 
             "java", "jetbrains", "intellij", "warp", "termora", "tabby", 
-            "wezterm", "alacritty"
+            "wezterm", "alacritty", "code", "screensharing", "屏幕共享"
         ]
         
         if specialKeywords.contains(where: { bundleID.contains($0) || appName.contains($0) }) {

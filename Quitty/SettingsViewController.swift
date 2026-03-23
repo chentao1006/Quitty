@@ -1,5 +1,6 @@
 import SwiftUI
 import Cocoa
+import UniformTypeIdentifiers
 
 class SettingsViewController: NSHostingController<SettingsView> {
     init() {
@@ -429,7 +430,7 @@ struct DataSettingsView: View {
                                     .id("logBottom")
                             }
                         }
-                        .frame(minHeight: 200, maxHeight: 300)
+                        .frame(height: 200)
                         .background(Color(NSColor.textBackgroundColor))
                         .cornerRadius(4)
                         .overlay(
@@ -446,6 +447,15 @@ struct DataSettingsView: View {
                     
                     HStack {
                         Spacer()
+                        Button(settings.localizedString("btn_export_logs")) {
+                            exportLogs()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        
+                        Divider()
+                            .frame(height: 10)
+                        
                         Button(settings.localizedString("btn_clear_logs")) {
                             settings.logs.removeAll()
                         }
@@ -491,6 +501,25 @@ struct DataSettingsView: View {
             if let data = try? Data(contentsOf: url) {
                 _ = settings.importFromJSON(data: data)
             }
+        }
+    }
+
+    private func exportLogs() {
+        let savePanel = NSSavePanel()
+        if #available(macOS 11.0, *) {
+            savePanel.allowedContentTypes = [UTType(filenameExtension: "log") ?? .plainText]
+        } else {
+            savePanel.allowedFileTypes = ["log"]
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+        let dateStr = formatter.string(from: Date())
+        savePanel.nameFieldStringValue = "quitty_logs_\(dateStr).log"
+        
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            let logContent = settings.logs.joined(separator: "\n")
+            try? logContent.write(to: url, atomically: true, encoding: .utf8)
         }
     }
 }

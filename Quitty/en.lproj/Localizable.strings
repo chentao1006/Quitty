@@ -2,7 +2,7 @@
 "menu_settings" = "Settings...";
 "menu_check_updates" = "Check for Updates...";
 "menu_quit" = "Quit Quitty";
-"subtitle" = "Auto-quit apps when their last window closes";
+"subtitle" = "Auto-quit certain apps when their last window closes";
 
 "tab_general" = "General";
 "tab_apps" = "Apps";
@@ -60,4 +60,5 @@
 
 "section_logs" = "RUNTIME LOGS";
 "btn_clear_logs" = "Clear Logs";
+"btn_export_logs" = "Export Logs...";
 "github" = "GitHub";
