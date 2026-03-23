@@ -502,7 +502,7 @@ class WindowWatcher {
             let lockTime = 12.0
             
             if Date().timeIntervalSince(self.lastSpaceChangeDate) < lockTime {
-                Settings.shared.log("Space transition still active (\(Int(12.0 - Date().timeIntervalSince(self.lastSpaceChangeDate)))s remaining). Postponing final check for \(appName).")
+                Settings.shared.log("Space transition still active (\(max(0, Int(lockTime - Date().timeIntervalSince(self.lastSpaceChangeDate))))s remaining). Postponing final check for \(appName).")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
                     guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
                     self.pendingQuits.removeValue(forKey: pid)
@@ -599,32 +599,29 @@ class WindowWatcher {
             if width < 80 || height < 80 { continue }
             
             // Universal Ghost Sizes (known non-visible windows from various apps)
-            let isGhostSize = (abs(width - 500) < 30 && abs(height - 500) < 30) || 
-                              (abs(width - 600) < 30 && abs(height - 600) < 30) ||
-                              (abs(width - 692) < 25 && abs(height - 413) < 25) ||
-                              (abs(width - 715) < 30 && abs(height - 364) < 30) || // Screen Sharing ghost
-                              (abs(width - 735) < 30 && abs(height - 424) < 30) || // Sequel Ace ghost
-                              (abs(width - 1378) < 10 && abs(height - 870) < 10) || // Screen Sharing background
-                              (abs(width - 1920) < 5 && abs(height - 1080) < 5) || // Standard screen size ghost
-                              (abs(width - 960) < 60 && abs(height - 660) < 60) ||
-                              (abs(width - 1040) < 20 && abs(height - 1040) < 20)
+            // We are now much more precise with these to avoid catching real windows.
+            let isGhostSize = (abs(width - 715) < 5 && abs(height - 364) < 5) || // Screen Sharing ghost
+                              (abs(width - 735) < 5 && abs(height - 424) < 5) || // Sequel Ace ghost
+                              (abs(width - 500) < 2 && abs(height - 500) < 2) || // Generic toolkit ghost
+                              (abs(width - 600) < 2 && abs(height - 600) < 2)    // Generic toolkit ghost
             
             if isGhostSize { continue }
             
             let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
             if !isOnScreen {
                 // Window on another space
-                // Relaxed threshold (110x110) for cross-platform/special apps.
-                // We are even MORE suspicious of unnamed windows on other spaces if AX said 0.
-                let threshold: CGFloat = isElectron ? 180 : 400
+                // Relaxed threshold for cross-platform/special apps.
+                // We are even MORE suspicious of unnamed windows on other spaces if AX said 0,
+                // but we must not be too aggressive.
+                let threshold: CGFloat = isElectron ? 60 : 120
                 if width > threshold && height > threshold {
-                    Settings.shared.log("   -> [isActualWindowPresent] Found window for \(pid) on another space (\(Int(width))x\(Int(height)))")
+                    Settings.shared.log("   -> [isActualWindowPresent] Found unnamed window for \(pid) on another space (\(Int(width))x\(Int(height)))")
                     return true
                 }
             } else {
                 // Onscreen unnamed window
-                // Relaxed threshold (180x180) for cross-platform/special apps.
-                let threshold: CGFloat = isElectron ? 180 : 350
+                // Relaxed threshold for cross-platform/special apps.
+                let threshold: CGFloat = isElectron ? 60 : 100
                 if width > threshold && height > threshold {
                     Settings.shared.log("   -> [isActualWindowPresent] Found unnamed onscreen window for \(pid) (\(Int(width))x\(Int(height)))")
                     return true
@@ -645,7 +642,8 @@ class WindowWatcher {
             "vscode", "visualstudio", "antigravity", "electron", "discord", 
             "slack", "cursor", "obsidian", "linear", "notion", "term", 
             "java", "jetbrains", "intellij", "warp", "termora", "tabby", 
-            "wezterm", "alacritty", "code", "screensharing", "屏幕共享"
+            "wezterm", "alacritty", "code", "screensharing", "屏幕共享",
+            "microsoft", "rdc", "windowsapp"
         ]
         
         if specialKeywords.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
