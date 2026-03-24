@@ -4,6 +4,8 @@
 
 **Quitty** is a lightweight, modern macOS utility that automatically terminates applications when their last window is closed. It is designed to be a robust, high-performance, and macOS Tahoe-compatible alternative to older tools like SwiftQuit.
 
+[![Download Quitty](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=apple)](https://github.com/chentao1006/quitty/releases/latest)
+
 ## 🚀 Key Features
 
 -   **Automatic Termination**: Quits apps instantly (or with a delay) when you close their last window.

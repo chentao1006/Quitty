@@ -4,6 +4,8 @@
 
 **静隐** 是一款轻量、现代的 macOS 工具，可在应用程序关闭最后一个窗口时自动终止该程序。它旨在成为旧版工具（如 SwiftQuit）的稳健、高性能且兼容 macOS Tahoe 的替代品。
 
+[![下载 Quitty](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=apple)](https://github.com/chentao1006/quitty/releases/latest)
+
 ## 🚀 核心功能
 
 -   **自动终止**：当您关闭最后一个窗口时，立即（或延迟）退出应用程序。
