@@ -382,11 +382,11 @@ class WindowWatcher {
 
         Settings.shared.log("Received \(notification) for \(app.localizedName ?? "app") (PID: \(pid))")
 
-        // Electron-based apps need more time
-        let isElectron = self.isElectronApp(app)
+        // Special apps (Electron, Office, etc.) need more time
+        let isSpecial = self.isSpecialCareApp(app)
         
         let baseDelay = isClosed ? 0.4 : 0.8
-        var totalDelay = baseDelay * (isElectron ? 2.0 : 1.5)
+        var totalDelay = baseDelay * (isSpecial ? 2.0 : 1.5)
         
         // Grace period during space change is now generous for ALL apps
         if Date().timeIntervalSince(lastSpaceChangeDate) < 5.0 {
@@ -472,10 +472,10 @@ class WindowWatcher {
             DispatchQueue.main.async {
                 self.pendingQuits[pid]?.cancel()
                 
-                let isElectron = self.isElectronApp(app)
+                let isSpecial = self.isSpecialCareApp(app)
                 let isAppCurrentlyActive = app.isActive
                 // Slightly more responsive delays
-                let extraDelay = (isAppCurrentlyActive ? 2.5 : 0.5) + (isElectron ? 2.0 : 1.0)
+                let extraDelay = (isAppCurrentlyActive ? 2.5 : 0.5) + (isSpecial ? 2.0 : 1.0)
                 let totalDelay = 1.5 + extraDelay
                 
                 let workItem = DispatchWorkItem { [weak self] in
@@ -562,7 +562,7 @@ class WindowWatcher {
             return true // Safety
         }
 
-        let isElectron = NSRunningApplication(processIdentifier: pid).map { isElectronApp($0) } ?? false
+        let isSpecial = NSRunningApplication(processIdentifier: pid).map { isSpecialCareApp($0) } ?? false
 
         for window in windowList {
             guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { continue }
@@ -605,7 +605,8 @@ class WindowWatcher {
                               (abs(width - 715) < 30 && abs(height - 364) < 30) || // Screen Sharing ghost
                               (abs(width - 735) < 30 && abs(height - 424) < 30) || // Sequel Ace ghost
                               (abs(width - 960) < 60 && abs(height - 660) < 60) ||
-                              (abs(width - 1040) < 20 && abs(height - 1040) < 20)
+                              (abs(width - 1040) < 20 && abs(height - 1040) < 20) ||
+                              (abs(width - 1291) < 20 && abs(height - 832) < 20) // Microsoft Excel ghost
             
             if isGhostSize { continue }
             
@@ -613,7 +614,7 @@ class WindowWatcher {
             if !isOnScreen {
                 // Window on another space
                 // Relaxed threshold (110x110) for cross-platform/special apps.
-                let threshold: CGFloat = isElectron ? 110 : 250
+                let threshold: CGFloat = isSpecial ? 110 : 250
                 if width > threshold && height > threshold {
                     Settings.shared.log("   -> [isActualWindowPresent] Found window for \(pid) on another space (\(Int(width))x\(Int(height)))")
                     return true
@@ -621,7 +622,7 @@ class WindowWatcher {
             } else {
                 // Onscreen unnamed window
                 // Relaxed threshold (180x180) for cross-platform/special apps.
-                let threshold: CGFloat = isElectron ? 180 : 350
+                let threshold: CGFloat = isSpecial ? 180 : 350
                 if width > threshold && height > threshold {
                     Settings.shared.log("   -> [isActualWindowPresent] Found unnamed onscreen window for \(pid) (\(Int(width))x\(Int(height)))")
                     return true
@@ -632,17 +633,18 @@ class WindowWatcher {
         return false
     }
 
-    private func isElectronApp(_ app: NSRunningApplication) -> Bool {
+    private func isSpecialCareApp(_ app: NSRunningApplication) -> Bool {
         let appName = (app.localizedName ?? "").lowercased()
         let bundleID = (app.bundleIdentifier ?? "").lowercased()
         
-        // Keywords for apps that use cross-platform frameworks (Electron, Java, etc.)
-        // or terminal emulators. These often have unnamed windows or non-standard AX trees.
+        // Keywords for apps that use cross-platform frameworks (Electron, Java, etc.),
+        // terminal emulators, or heavy native apps with ghost windows (Office).
+        // These often have unnamed windows, non-standard AX trees, or slow updates.
         let specialKeywords = [
             "vscode", "visualstudio", "antigravity", "electron", "discord", 
             "slack", "cursor", "obsidian", "linear", "notion", "term", 
             "java", "jetbrains", "intellij", "warp", "termora", "tabby", 
-            "wezterm", "alacritty"
+            "wezterm", "alacritty", "microsoft", "excel", "powerpoint", "outlook", "word"
         ]
         
         if specialKeywords.contains(where: { bundleID.contains($0) || appName.contains($0) }) {
