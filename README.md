@@ -15,8 +15,9 @@
     *   **Exclude Mode**: Quit all applications except for those you want to keep running.
 -   **Configurable Delay**: Set a custom grace period (0-5 seconds) before an app is terminated.
 -   **Launch at Login**: Seamlessly starts with your Mac.
--   **Settings Sync**: Synchronize your settings and excluded apps across machines using a JSON sync file (perfect for iCloud Drive).
--   **Built-in Diagnostics**: Integrated logging and health checks to ensure the monitoring engine is running smoothly.
+-   **Adaptive Learning Engine**: Quitty learns from your feedback. If an app stays open or quits incorrectly, you can report it to help the engine adapt to that app's specific window behavior.
+-   **Settings Sync**: Synchronize your settings and learned rules across machines using iCloud Drive.
+-   **Crowdsourced Improvement**: Optionally report issues to contribute to a better universal detection engine for all users.
 
 ## 🛠 Installation
 
@@ -59,7 +60,8 @@ Unlike some tools that rely on high-level frameworks which broke in recent macOS
 2.  For each target app, it attaches a raw C-based `AXObserver` to the process.
 3.  It listens for the `AXWindowClosed` notification.
 4.  When triggered, it performs a non-blocking check of the app's current window list.
-5.  If the count is zero (excluding drawers and sheets), it schedules a termination via `NSRunningApplication.terminate()`.
+5.  If the count is zero (excluding drawers and sheets), it checks against a **learned ghost size list** and an **adaptive sensitivity multiplier** derived from your feedback.
+6.  If both checks pass, it schedules a termination via `NSRunningApplication.terminate()`.
 
 ## ⚠️ Important Notes
 

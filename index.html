@@ -80,7 +80,12 @@
                 <div class="feature-card">
                     <div class="icon">🔄</div>
                     <h3 data-i18n="f4_title">配置同步</h3>
-                    <p data-i18n="f4_desc">支持通过 JSON 文件同步设置，轻松在多台 Mac 之间保持一致的偏好。</p>
+                    <p data-i18n="f4_desc">支持通过 JSON 文件同步设置，并在多台 Mac 之间保持一致的自学规则。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🧠</div>
+                    <h3 data-i18n="f5_title">自我学习</h3>
+                    <p data-i18n="f5_desc">根据您的反馈自动调整退出逻辑。误退上报后，系统会自动学习并避免此类情况再次发生。</p>
                 </div>
             </div>
         </div>
@@ -180,7 +185,9 @@
                 f3_title: "极致性能",
                 f3_desc: "基于原生 Accessibility API (AXObserver) 构建，完美兼容最新的 macOS Tahoe。",
                 f4_title: "配置同步",
-                f4_desc: "支持通过 JSON 文件同步设置，轻松在多台 Mac 之间保持一致的偏好。",
+                f4_desc: "支持通过 JSON 文件同步设置，并在多台 Mac 之间保持一致的自学规则。",
+                f5_title: "自我学习",
+                f5_desc: "根据您的反馈自动调整退出逻辑。误退上报后，系统会自动学习并避免此类情况再次发生。",
                 how_title: "它是如何工作的？",
                 how_subtitle: "静隐 采用非侵入式设计。它通过监控系统级别的窗口事件，在检测到应用最后一个窗口关闭时，会进行二次确认并安全地执行退出指令。",
                 s1: "监控窗口关闭通知",
@@ -209,7 +216,9 @@
                 f3_title: "Tahoe Ready",
                 f3_desc: "Built using raw Accessibility APIs for maximum speed and compatibility with macOS 16.",
                 f4_title: "Config Sync",
-                f4_desc: "Sync your exclusion lists and settings via iCloud/JSON across all your devices.",
+                f4_desc: "Sync your settings and learned rules via iCloud/JSON across all your devices.",
+                f5_title: "Self-Learning",
+                f5_desc: "Quitty evolves based on your feedback, intelligently avoiding false-quits for your unique apps.",
                 how_title: "How it works?",
                 how_subtitle: "Quitty monitors system-wide window events non-intrusively. It confirms the window count before safely terminating the app.",
                 s1: "Monitor window close events",
