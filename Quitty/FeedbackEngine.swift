@@ -112,40 +112,44 @@ class FeedbackEngine: ObservableObject {
     // MARK: - Recording
 
     func recordTermination(pid: pid_t, bundleID: String, appName: String, bundlePath: String?) {
-        let snapshots = captureSnapshots(pid: pid)
-        let record = TerminationRecord(
-            date: Date(),
-            bundleID: bundleID,
-            appName: appName,
-            appIconPath: bundlePath,
-            windowSnapshots: snapshots,
-            feedbackType: nil
-        )
-        DispatchQueue.main.async {
-            self.history.insert(record, at: 0)
-            if self.history.count > self.maxHistory {
-                self.history = Array(self.history.prefix(self.maxHistory))
+        autoreleasepool {
+            let snapshots = captureSnapshots(pid: pid)
+            let record = TerminationRecord(
+                date: Date(),
+                bundleID: bundleID,
+                appName: appName,
+                appIconPath: bundlePath,
+                windowSnapshots: snapshots,
+                feedbackType: nil
+            )
+            DispatchQueue.main.async {
+                self.history.insert(record, at: 0)
+                if self.history.count > self.maxHistory {
+                    self.history = Array(self.history.prefix(self.maxHistory))
+                }
+                self.saveHistory()
             }
-            self.saveHistory()
         }
     }
 
     private func captureSnapshots(pid: pid_t) -> [WindowSnapshot] {
-        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
-        guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            return []
-        }
-        return list.compactMap { w -> WindowSnapshot? in
-            guard let ownerPID = w[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { return nil }
-            guard let layer = w[kCGWindowLayer as String] as? Int, (0...100).contains(layer) else { return nil }
-            let alpha  = w[kCGWindowAlpha as String] as? Double ?? 0
-            let bounds = w[kCGWindowBounds as String] as? [String: Any]
-            let width  = bounds?["Width"] as? CGFloat ?? 0
-            let height = bounds?["Height"] as? CGFloat ?? 0
-            let name   = (w[kCGWindowName as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            let onScreen = w[kCGWindowIsOnscreen as String] as? Bool ?? false
-            return WindowSnapshot(width: width, height: height, layer: layer,
-                                  isOnScreen: onScreen, alpha: alpha, name: name)
+        return autoreleasepool {
+            let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
+            guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+                return []
+            }
+            return list.compactMap { w -> WindowSnapshot? in
+                guard let ownerPID = w[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { return nil }
+                guard let layer = w[kCGWindowLayer as String] as? Int, (0...100).contains(layer) else { return nil }
+                let alpha  = w[kCGWindowAlpha as String] as? Double ?? 0
+                let bounds = w[kCGWindowBounds as String] as? [String: Any]
+                let width  = bounds?["Width"] as? CGFloat ?? 0
+                let height = bounds?["Height"] as? CGFloat ?? 0
+                let name   = (w[kCGWindowName as String] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let onScreen = w[kCGWindowIsOnscreen as String] as? Bool ?? false
+                return WindowSnapshot(width: width, height: height, layer: layer,
+                                      isOnScreen: onScreen, alpha: alpha, name: name)
+            }
         }
     }
 

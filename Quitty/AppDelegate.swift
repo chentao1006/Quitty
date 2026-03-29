@@ -18,6 +18,27 @@ import Sparkle
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     static func main() {
+        // Enforce single instance
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.ct106.quitty"
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        
+        if runningApps.count > 1 {
+            // Send notification to existing instance to show its window
+            DistributedNotificationCenter.default().postNotificationName(
+                NSNotification.Name(bundleID + ".ShowMainWindow"),
+                object: nil,
+                userInfo: nil,
+                deliverImmediately: true
+            )
+            
+            // Activate the existing instance
+            if let existingApp = runningApps.first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+                existingApp.activate(options: .activateIgnoringOtherApps)
+            }
+            
+            exit(0)
+        }
+
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -80,6 +101,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(handleSettingsUpdate),
             name: Settings.didUpdateNotification,
+            object: nil
+        )
+
+        // Listen for internal "ShowMainWindow" signal from other launch attempts
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(showSettings),
+            name: NSNotification.Name((Bundle.main.bundleIdentifier ?? "com.ct106.quitty") + ".ShowMainWindow"),
             object: nil
         )
     }

@@ -42,6 +42,9 @@ class WindowWatcher {
     var observerCount: Int {
         return observers.count
     }
+    
+    // Maintenance timer
+    private var maintenanceTimer: Timer?
 
     // MARK: - Public Interface
 
@@ -54,8 +57,15 @@ class WindowWatcher {
         
         // Start a low-frequency backup timer to catch any missed closure events
         DispatchQueue.main.async {
-            self.refreshTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { [weak self] _ in
-                self?.periodicCheck()
+            self.refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+                autoreleasepool {
+                    self?.periodicCheck()
+                }
+            }
+            
+            // Maintenance timer for deep cleanup every hour
+            self.maintenanceTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+                self?.maintenanceCleanup()
             }
         }
     }
@@ -85,6 +95,8 @@ class WindowWatcher {
             
             self.refreshTimer?.invalidate()
             self.refreshTimer = nil
+            self.maintenanceTimer?.invalidate()
+            self.maintenanceTimer = nil
         }
     }
 
@@ -100,17 +112,29 @@ class WindowWatcher {
                 }
             }
             
-            // 2. Cleanup OLD observers for apps that are no longer relevant (e.g. settings changed)
+            // 2. Cleanup OLD observers and tracking data for apps that are no longer in workspace
             let pidsInWorkspace = Set(activeApps.map { $0.processIdentifier })
+            
+            // Aggressively clean tracking structures to prevent long-term memory growth
+            let allTrackedPids = Set(self.observers.keys)
+                .union(self.armedPids)
+                .union(self.lastCheckTimes.keys)
+                .union(self.quitGenerations.keys)
+                .union(self.lastHookTimes.keys)
+                .union(self.pendingQuits.keys)
+            
+            let pidsToCleanup = allTrackedPids.subtracting(pidsInWorkspace)
+            
+            for pid in pidsToCleanup {
+                self.removeObserverForPid(pid)
+                self.armedPids.remove(pid)
+                self.lastHookTimes.removeValue(forKey: pid)
+                self.lastCheckTimes.removeValue(forKey: pid)
+                self.quitGenerations.removeValue(forKey: pid)
+            }
+            
+            // 3. For apps still in workspace, check if they are still relevant
             for pid in Array(self.observers.keys) {
-                // If app is gone entirely, appTerminated usually handles it, but let's be double sure
-                if !pidsInWorkspace.contains(pid) {
-                    self.removeObserverForPid(pid)
-                    self.lastHookTimes.removeValue(forKey: pid)
-                    continue
-                }
-                
-                // If app is still running but should no longer be watched
                 if let app = NSRunningApplication(processIdentifier: pid),
                    !Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier) {
                     Settings.shared.log("Cleaning up observer for \(app.localizedName ?? "app") - no longer in target list")
@@ -119,6 +143,15 @@ class WindowWatcher {
                 }
             }
         }
+    }
+
+    private func maintenanceCleanup() {
+        Settings.shared.log("Performing periodic maintenance cleanup...")
+        refreshAllApps()
+        
+        // Trim any hook history older than 12 hours
+        let now = Date()
+        lastHookTimes = lastHookTimes.filter { now.timeIntervalSince($0.value) < 43200 }
     }
 
     private func removeObserverForPid(_ pid: pid_t) {
@@ -420,29 +453,30 @@ class WindowWatcher {
             return
         }
 
-        // DEBOUNCE: Don't check the same app too frequently
+        // DEBOUNCE: Don't check the same app too frequently (min 3s between checks)
+        if let lastCheck = lastCheckTimes[pid], Date().timeIntervalSince(lastCheck) < 3.0 {
+            return
+        }
         lastCheckTimes[pid] = Date()
 
         // Safety: If a space change just happened, wait significantly longer
         if Date().timeIntervalSince(lastSpaceChangeDate) < 2.0 {
-            // Anti-spam: only log once every 2 seconds per app
-            if Date().timeIntervalSince(lastCheckTimes[pid] ?? .distantPast) > 2.0 {
-                Settings.shared.log("Space transition in progress. Re-scheduling check for \(appName).")
-            }
+            Settings.shared.log("Space transition in progress. Re-scheduling check for \(appName).")
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
                 self?.checkAndQuit(app: app)
             }
             return
         }
 
-        // AX Calls can sometimes block
+        // AX Calls can sometimes block; wrap in autoreleasepool to ensure CF objects are freed
         queue.async { [weak self] in
-            guard let self = self else { return }
-            
-            // Get window list using Accessibility API
-            let axApp = AXUIElementCreateApplication(pid)
-            var windowsRef: CFTypeRef?
-            let err = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef)
+            autoreleasepool {
+                guard let self = self else { return }
+                
+                // Get window list using Accessibility API
+                let axApp = AXUIElementCreateApplication(pid)
+                var windowsRef: CFTypeRef?
+                let err = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef)
 
             var windowCount = 0
             if err == .success, let windows = windowsRef as? [AXUIElement] {
@@ -497,6 +531,7 @@ class WindowWatcher {
             }
         }
     }
+}
 
     private func performFinalCheckAndQuit(pid: pid_t, appName: String, generation: Int = -1) {
         // Double check app is still alive
@@ -507,73 +542,75 @@ class WindowWatcher {
 
         // Final window count check
         queue.async {
-            // Abort if a new window appeared after we were scheduled (generation mismatch)
-            let currentGeneration = DispatchQueue.main.sync { self.quitGenerations[pid] ?? 0 }
-            if generation >= 0 && currentGeneration != generation {
-                Settings.shared.log("Final check aborted for \(appName) – window appeared after scheduling (gen \(generation) → \(currentGeneration)).")
-                DispatchQueue.main.async { self.pendingQuits.removeValue(forKey: pid) }
-                return
-            }
-
-            // During space transitions, treat ALL apps with maximum caution
-            let lockTime = 6.0
-            
-            if Date().timeIntervalSince(self.lastSpaceChangeDate) < lockTime {
-                Settings.shared.log("Space transition still active (\(Int(12.0 - Date().timeIntervalSince(self.lastSpaceChangeDate)))s remaining). Postponing final check for \(appName).")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
-                    guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
-                    self.pendingQuits.removeValue(forKey: pid)
-                    self.checkAndQuit(app: app)
+            autoreleasepool {
+                // Abort if a new window appeared after we were scheduled (generation mismatch)
+                let currentGeneration = DispatchQueue.main.sync { self.quitGenerations[pid] ?? 0 }
+                if generation >= 0 && currentGeneration != generation {
+                    Settings.shared.log("Final check aborted for \(appName) – window appeared after scheduling.")
+                    DispatchQueue.main.async { self.pendingQuits.removeValue(forKey: pid) }
+                    return
                 }
-                return
-            }
 
-            let axApp = AXUIElementCreateApplication(pid)
-            var windows: CFTypeRef?
-            let res = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
-            
-            if res != .success && res != .noValue {
-                Settings.shared.log("Final check failed to get windows for \(appName): \(res.rawValue). Aborting termination.")
-                DispatchQueue.main.async {
-                    self.pendingQuits.removeValue(forKey: pid)
+                // During space transitions, treat ALL apps with maximum caution
+                let lockTime = 6.0
+                
+                if Date().timeIntervalSince(self.lastSpaceChangeDate) < lockTime {
+                    Settings.shared.log("Space transition still active. Postponing final check for \(appName).")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                        guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
+                        self.pendingQuits.removeValue(forKey: pid)
+                        self.checkAndQuit(app: app)
+                    }
+                    return
                 }
-                return
-            }
 
-            let foundWindows = windows as? [AXUIElement] ?? []
-            let count = foundWindows.filter { win in
-                var sub: CFTypeRef?
-                AXUIElementCopyAttributeValue(win, kAXSubroleAttribute as CFString, &sub)
-                let s = sub as? String ?? ""
-                return s != kAXSheetSubrole && s != kAXDrawerSubrole
-            }.count
-            
-            if count == 0 {
-                // LAST STAND: Cross-verify with low-level CGWindowList.
-                if self.isActualWindowPresent(pid: pid) {
-                    Settings.shared.log("AX reported 0 but CGWindowList found windows for \(appName). Aborting.")
+                let axApp = AXUIElementCreateApplication(pid)
+                var windows: CFTypeRef?
+                let res = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
+                
+                if res != .success && res != .noValue {
+                    Settings.shared.log("Final check failed to get windows for \(appName). Aborting termination.")
                     DispatchQueue.main.async {
                         self.pendingQuits.removeValue(forKey: pid)
                     }
                     return
                 }
 
-                Settings.shared.log("Final check confirmed 0 windows for \(appName). Terminating.")
-                DispatchQueue.main.async {
-                    // Record termination for history + feedback learning
-                    FeedbackEngine.shared.recordTermination(
-                        pid: pid,
-                        bundleID: app.bundleIdentifier ?? "",
-                        appName: appName,
-                        bundlePath: app.bundleURL?.path
-                    )
-                    app.terminate()
-                    self.pendingQuits.removeValue(forKey: pid)
-                }
-            } else {
-                Settings.shared.log("Final check skipped for \(appName) (Windows found: \(count))")
-                DispatchQueue.main.async {
-                    self.pendingQuits.removeValue(forKey: pid)
+                let foundWindows = windows as? [AXUIElement] ?? []
+                let count = foundWindows.filter { win in
+                    var sub: CFTypeRef?
+                    AXUIElementCopyAttributeValue(win, kAXSubroleAttribute as CFString, &sub)
+                    let s = sub as? String ?? ""
+                    return s != kAXSheetSubrole && s != kAXDrawerSubrole
+                }.count
+                
+                if count == 0 {
+                    // LAST STAND: Cross-verify with low-level CGWindowList.
+                    if self.isActualWindowPresent(pid: pid) {
+                        Settings.shared.log("AX reported 0 but CGWindowList found windows for \(appName). Aborting.")
+                        DispatchQueue.main.async {
+                            self.pendingQuits.removeValue(forKey: pid)
+                        }
+                        return
+                    }
+
+                    Settings.shared.log("Final check confirmed 0 windows for \(appName). Terminating.")
+                    DispatchQueue.main.async {
+                        // Record termination for history + feedback learning
+                        FeedbackEngine.shared.recordTermination(
+                            pid: pid,
+                            bundleID: app.bundleIdentifier ?? "",
+                            appName: appName,
+                            bundlePath: app.bundleURL?.path
+                        )
+                        app.terminate()
+                        self.pendingQuits.removeValue(forKey: pid)
+                    }
+                } else {
+                    Settings.shared.log("Final check skipped for \(appName) (Windows found: \(count))")
+                    DispatchQueue.main.async {
+                        self.pendingQuits.removeValue(forKey: pid)
+                    }
                 }
             }
         }
@@ -581,10 +618,11 @@ class WindowWatcher {
 
     /// High-reliability window check using the Window Server's direct list.
     private func isActualWindowPresent(pid: pid_t) -> Bool {
-        let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
-        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            return true // Safety
-        }
+        return autoreleasepool {
+            let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
+            guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+                return true // Safety
+            }
 
         let app = NSRunningApplication(processIdentifier: pid)
         let isSpecial = app.map { isSpecialCareApp($0) } ?? false
@@ -709,6 +747,7 @@ class WindowWatcher {
             }
         }
         return false
+      }
     }
 
     private func isSpecialCareApp(_ app: NSRunningApplication) -> Bool {
