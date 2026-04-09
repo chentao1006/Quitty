@@ -23,43 +23,80 @@ echo "Current Version: $CURRENT_VERSION"
 echo "Current Build  : $CURRENT_BUILD"
 echo "----------------------------------------"
 
-if [ -z "$1" ]; then
-    read -p "Enter NEW Version (e.g. 1.0.6): " NEW_VERSION
+SKIP_BUILD=false
+NEW_VERSION_ARG=""
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -s|--skip-build) SKIP_BUILD=true ;;
+        *) NEW_VERSION_ARG="$1" ;;
+    esac
+    shift
+done
+
+if [ "$SKIP_BUILD" = "true" ]; then
+    # When skipping build, default to current version/build if not specified
+    if [ -z "$NEW_VERSION_ARG" ]; then
+        NEW_VERSION="$CURRENT_VERSION"
+    else
+        NEW_VERSION="$NEW_VERSION_ARG"
+    fi
+    NEW_BUILD="$CURRENT_BUILD"
+    echo "⏩ Skipping build step. Using current version $NEW_VERSION (Build $NEW_BUILD)."
 else
-    NEW_VERSION=$1
-fi
+    # When building, we need a new version (prompt if not provided)
+    if [ -z "$NEW_VERSION_ARG" ]; then
+        read -p "Enter NEW Version (Current: $CURRENT_VERSION): " NEW_VERSION
+    else
+        NEW_VERSION="$NEW_VERSION_ARG"
+    fi
 
-if [ -z "$NEW_VERSION" ]; then
-    echo "❌ Error: New version cannot be empty."
-    exit 1
-fi
+    if [ -z "$NEW_VERSION" ]; then
+        echo "❌ Error: New version cannot be empty."
+        exit 1
+    fi
 
-# Determine NEW_BUILD (Always increment to ensure Sparkle compatibility)
-NEW_BUILD=$((CURRENT_BUILD + 1))
+    # Determine NEW_BUILD (Always increment for new builds)
+    NEW_BUILD=$((CURRENT_BUILD + 1))
+    
+    echo "🚀 Preparing local release $NEW_VERSION (Build $NEW_BUILD)..."
 
-echo "🚀 Preparing local release $NEW_VERSION (Build $NEW_BUILD)..."
+    # 1. Update Version Files
+    sed -i '' -E "/<key>CFBundleShortVersionString<\/key>/{n;s/<string>.*<\/string>/<string>$NEW_VERSION<\/string>/;}" "$PLIST_PATH"
+    sed -i '' -E "/<key>CFBundleVersion<\/key>/{n;s/<string>.*<\/string>/<string>$NEW_BUILD<\/string>/;}" "$PLIST_PATH"
+    sed -i '' "s/MARKETING_VERSION = .*;/MARKETING_VERSION = $NEW_VERSION;/" "$PBXPROJ_PATH"
+    sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/" "$PBXPROJ_PATH"
 
-# 1. Update Version Files
-sed -i '' -E "/<key>CFBundleShortVersionString<\/key>/{n;s/<string>.*<\/string>/<string>$NEW_VERSION<\/string>/;}" "$PLIST_PATH"
-sed -i '' -E "/<key>CFBundleVersion<\/key>/{n;s/<string>.*<\/string>/<string>$NEW_BUILD<\/string>/;}" "$PLIST_PATH"
-sed -i '' "s/MARKETING_VERSION = .*;/MARKETING_VERSION = $NEW_VERSION;/" "$PBXPROJ_PATH"
-sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/" "$PBXPROJ_PATH"
+    echo "✅ Local configuration updated."
 
-echo "✅ Local configuration updated."
+    # 2. Run Local Build
+    chmod +x package.sh
+    ./package.sh "$NEW_VERSION"
 
-# 2. Run Local Build (Uses your working local keychain)
-chmod +x package.sh
-./package.sh "$NEW_VERSION"
-
-if [ ! -f "${RESULT_DIR}/Quitty.dmg" ]; then
-    echo "❌ Local Build Failed: Quitty.dmg not found in ${RESULT_DIR}"
-    exit 1
+    if [ ! -f "${RESULT_DIR}/Quitty.dmg" ]; then
+        echo "❌ Local Build Failed: Quitty.dmg not found in ${RESULT_DIR}"
+        exit 1
+    fi
 fi
 
 # 3. Git Operations
 git add .
-git commit -m "chore: release version $NEW_VERSION (build $NEW_BUILD)"
+# Check if there are changes to commit
+if git diff-index --quiet HEAD --; then
+    echo "ℹ️ No changes to commit."
+else
+    git commit -m "chore: release version $NEW_VERSION build $NEW_BUILD"
+fi
+
+# Check if tag already exists and handle accordingly (gh release delete handles it later, but git tag might fail)
+if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
+    echo "ℹ️ Tag v$NEW_VERSION already exists locally, will overwrite if needed during release."
+    git tag -d "v$NEW_VERSION" >/dev/null 2>&1
+fi
 git tag "v$NEW_VERSION"
+
+
 
 echo "📦 Code committed and tagged locally."
 

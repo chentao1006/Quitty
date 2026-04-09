@@ -49,6 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindowController: SettingsWindowController?
     let windowWatcher = WindowWatcher()
     private var watcherStarted = false
+    private var restartTimer: Timer?
     
     // Sparkle updater
     let updaterController: SPUStandardUpdaterController
@@ -111,6 +112,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSNotification.Name((Bundle.main.bundleIdentifier ?? "com.ct106.quitty") + ".ShowMainWindow"),
             object: nil
         )
+
+        setupRestartTimer()
     }
 
     @objc private func handleSettingsUpdate() {
@@ -241,5 +244,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showMenuBarIcon() {
         statusItem?.isVisible = true
+    }
+
+    // MARK: - Daily Auto-Restart
+
+    private func setupRestartTimer() {
+        restartTimer?.invalidate()
+        
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Target: Midnight (00:00:00)
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        
+        guard var restartDate = calendar.date(from: components) else { return }
+        
+        // If it's already past midnight, schedule for the next day
+        if restartDate <= now {
+            restartDate = calendar.date(byAdding: .day, value: 1, to: restartDate)!
+        }
+        
+        let interval = restartDate.timeIntervalSince(now)
+        Settings.shared.log("Scheduled daily auto-restart at 00:00 (in \(Int(interval/3600))h \(Int(interval.truncatingRemainder(dividingBy: 3600)/60))m)")
+        
+        restartTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            self?.performRestart()
+        }
+    }
+
+    private func performRestart() {
+        let path = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
+        Settings.shared.log("Performing scheduled daily restart...")
+        
+        let task = Process()
+        task.launchPath = "/bin/sh"
+        task.arguments = ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done; open \"\(path)\""]
+        
+        do {
+            try task.run()
+            NSApp.terminate(nil)
+        } catch {
+            Settings.shared.log("Failed to launch restart task: \(error)")
+        }
     }
 }
