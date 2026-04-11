@@ -74,9 +74,6 @@ class WindowWatcher {
         DispatchQueue.main.async {
             // Remove all AX observers
             for (pid, observer) in self.observers {
-                if let app = NSRunningApplication(processIdentifier: pid) {
-                    self.removeObserver(observer, for: app)
-                }
                 CFRunLoopRemoveSource(
                     CFRunLoopGetMain(),
                     AXObserverGetRunLoopSource(observer),
@@ -97,6 +94,44 @@ class WindowWatcher {
             self.refreshTimer = nil
             self.maintenanceTimer?.invalidate()
             self.maintenanceTimer = nil
+        }
+    }
+
+    /// Performs a deep refresh of all observation state, clearing stale observers
+    /// and rebuilding the monitoring tree from scratch.
+    func purgeResources() {
+        DispatchQueue.main.async {
+            Settings.shared.log("Initiating daily deep resource purge...")
+            
+            // 1. Remove all existing AX observers and sources
+            for (pid, observer) in self.observers {
+                CFRunLoopRemoveSource(
+                    CFRunLoopGetMain(),
+                    AXObserverGetRunLoopSource(observer),
+                    .defaultMode
+                )
+            }
+            self.observers.removeAll()
+            self.observerContexts.removeAll()
+            
+            // 2. Clear all pending terminal tasks
+            for (_, item) in self.pendingQuits {
+                item.cancel()
+            }
+            self.pendingQuits.removeAll()
+            self.quitGenerations.removeAll()
+
+            // 3. Reset heuristic tracking
+            self.armedPids.removeAll()
+            self.lastCheckTimes.removeAll()
+            self.lastHookTimes.removeAll()
+            
+            // 4. Force a full workspace re-scan
+            autoreleasepool {
+                self.refreshAllApps()
+            }
+            
+            Settings.shared.log("Daily resource purge completed. All observers rebuilt.")
         }
     }
 

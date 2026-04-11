@@ -47,19 +47,33 @@ echo "📦 Installing to system Applications folder (${INSTALL_PATH})..."
 echo "🛑 Stopping any running instance of Quitty..."
 pkill -x "Quitty" || true
 
+# Wait for process to disappear
+MAX_RETRIES=10
+RETRY=0
+while pgrep -x "Quitty" > /dev/null && [ $RETRY -lt $MAX_RETRIES ]; do
+    echo "⏳ Waiting for Quitty to stop... ($RETRY/$MAX_RETRIES)"
+    sleep 0.5
+    RETRY=$((RETRY+1))
+done
+
 # If already exists, remove first
 if [ -d "${INSTALL_PATH}" ]; then
     echo "♻️ Replacing old version..."
     rm -rf "${INSTALL_PATH}"
 fi
 
-# Reset accessibility permissions to avoid manual deletion
+# Reset accessibility permissions if needed
 echo "🔐 Resetting Accessibility permissions..."
 tccutil reset Accessibility "${BUNDLE_ID}" || true
 
 cp -R "${BUILD_DIR}/${APP_NAME}" "${INSTALL_PATH}"
 
+# Clear quarantine and fix permissions for local testing
+xattr -cr "${INSTALL_PATH}"
+
 echo "🚀 Launching ${APP_NAME}..."
+# Give Launch Services a moment to register the new bundle
+sleep 1
 open "${INSTALL_PATH}"
 
 echo "🎉 Installation complete!"

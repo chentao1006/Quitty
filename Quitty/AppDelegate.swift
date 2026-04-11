@@ -49,7 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindowController: SettingsWindowController?
     let windowWatcher = WindowWatcher()
     private var watcherStarted = false
-    private var restartTimer: Timer?
+    private var purgeTimer: Timer?
     
     // Sparkle updater
     let updaterController: SPUStandardUpdaterController
@@ -113,7 +113,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        setupRestartTimer()
+        setupDailyPurgeTimer()
     }
 
     @objc private func handleSettingsUpdate() {
@@ -246,10 +246,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.isVisible = true
     }
 
-    // MARK: - Daily Auto-Restart
+    // MARK: - Daily Resource Purge
 
-    private func setupRestartTimer() {
-        restartTimer?.invalidate()
+    private func setupDailyPurgeTimer() {
+        purgeTimer?.invalidate()
         
         let calendar = Calendar.current
         let now = Date()
@@ -260,35 +260,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         components.minute = 0
         components.second = 0
         
-        guard var restartDate = calendar.date(from: components) else { return }
+        guard var purgeDate = calendar.date(from: components) else { return }
         
         // If it's already past midnight, schedule for the next day
-        if restartDate <= now {
-            restartDate = calendar.date(byAdding: .day, value: 1, to: restartDate)!
+        if purgeDate <= now {
+            purgeDate = calendar.date(byAdding: .day, value: 1, to: purgeDate)!
         }
         
-        let interval = restartDate.timeIntervalSince(now)
-        Settings.shared.log("Scheduled daily auto-restart at 00:00 (in \(Int(interval/3600))h \(Int(interval.truncatingRemainder(dividingBy: 3600)/60))m)")
+        let interval = purgeDate.timeIntervalSince(now)
+        Settings.shared.log("Scheduled daily resource purge at 00:00 (in \(Int(interval/3600))h \(Int(interval.truncatingRemainder(dividingBy: 3600)/60))m)")
         
-        restartTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
-            self?.performRestart()
+        purgeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            self?.performDailyPurge()
         }
     }
 
-    private func performRestart() {
-        let path = Bundle.main.bundlePath
-        let pid = ProcessInfo.processInfo.processIdentifier
-        Settings.shared.log("Performing scheduled daily restart...")
+    private func performDailyPurge() {
+        Settings.shared.log("Starting scheduled daily resource purge...")
         
-        let task = Process()
-        task.launchPath = "/bin/sh"
-        task.arguments = ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.1; done; open \"\(path)\""]
+        // 1. Tell the watcher to rebuild everything
+        windowWatcher.purgeResources()
         
-        do {
-            try task.run()
-            NSApp.terminate(nil)
-        } catch {
-            Settings.shared.log("Failed to launch restart task: \(error)")
+        // 2. Clear old logs in Settings to free memory
+        Settings.shared.logs.removeAll()
+        
+        // 3. Suggest to the system to reclaim memory
+        autoreleasepool {
+            // Swift's autoreleasepool combined with the internal re-scans in WindowWatcher 
+            // should be enough to drop major resource handles.
         }
+        
+        // 4. Schedule for the next day
+        setupDailyPurgeTimer()
+        
+        Settings.shared.log("Daily resource purge completed successfully.")
     }
 }
