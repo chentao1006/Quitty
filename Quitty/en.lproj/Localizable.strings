@@ -79,3 +79,5 @@
 "log_feedback_cant_quit" = "Feedback [Won't Quit] for %@. Captured %d windows.";
 "log_learned_ghost" = "Learned ghost (%dx%d) from Failed Quit.";
 "btn_undo_feedback" = "Undo Feedback";
+"btn_browse" = "Browse Files...";
+"running_apps" = "Running Apps";

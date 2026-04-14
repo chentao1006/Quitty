@@ -79,3 +79,5 @@
 "log_feedback_cant_quit" = "已记录 %@ 的反馈 [未退]。捕获到 %d 个窗口。";
 "log_learned_ghost" = "自退出失败中学习到幽灵窗口 (%dx%d)。";
 "btn_undo_feedback" = "撤销反馈";
+"btn_browse" = "浏览应用...";
+"running_apps" = "正在运行的应用";

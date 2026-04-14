@@ -660,27 +660,28 @@ class WindowWatcher {
             }
 
         let app = NSRunningApplication(processIdentifier: pid)
-        let isSpecial = app.map { isSpecialCareApp($0) } ?? false
         let appName = (app?.localizedName ?? "").lowercased()
         let bundleID = (app?.bundleIdentifier ?? "").lowercased()
-        // Certain apps are known for persistent unnamed ghosts (hard-coded baseline)
-        let isGhostProneHardcoded = appName.contains("handbrake") || appName.contains("termora") ||
-                           bundleID.contains("handbrake") || bundleID.contains("termora")
-        // Also check learned override from user feedback
-        let isGhostProneLearned = FeedbackEngine.shared.isGhostProneOverride(bundleID: app?.bundleIdentifier ?? bundleID)
-        let isGhostProne = isGhostProneHardcoded || isGhostProneLearned
-        // Sensitivity multiplier from feedback: 
-        // >1.0 means ignore MORE stuff (due to Failed Quit feedback)
-        // <1.0 means keep MORE stuff (due to False Quit feedback)
         let sensitivityMult = FeedbackEngine.shared.sensitivityMultiplier(bundleID: app?.bundleIdentifier ?? bundleID)
         let cautionMult = sensitivityMult > 0 ? 1.0 / sensitivityMult : 1.0
+
+        // DYNAMIC STATUS:
+        // 1. If an app has EVER been reported for False Quit, it becomes "Special Care" automatically.
+        let isSpecialFromFeedback = sensitivityMult < 0.95
+        let isSpecial = (app.map { isSpecialCareApp($0) } ?? false) || isSpecialFromFeedback
+
+        // 2. If an app has EVER been reported for failing to quit, it becomes "Ghost Prone" automatically.
+        let isGhostProneFromFeedback = sensitivityMult > 1.05
+        let isGhostProneHardcoded = appName.contains("handbrake") || appName.contains("termora") ||
+                           bundleID.contains("handbrake") || bundleID.contains("termora")
+        let isGhostProne = isGhostProneHardcoded || isGhostProneFromFeedback
 
         for window in windowList {
             guard let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == pid else { continue }
             
             // Layer check: Most standard windows are Layer 0.
-            // We allow up to Layer 100 to catch specialized UI/Terminal windows and cross-platform toolkits.
-            guard let layer = window[kCGWindowLayer as String] as? Int, (0...100).contains(layer) else { continue }
+            // We allow up to Layer 150 to catch specialized UI/Terminal windows and cross-platform toolkits.
+            guard let layer = window[kCGWindowLayer as String] as? Int, (0...150).contains(layer) else { continue }
             
             // Alpha check
             let alpha = window[kCGWindowAlpha as String] as? Double ?? 0
@@ -738,18 +739,19 @@ class WindowWatcher {
 
             // If it matches a universal ghost size:
             if !learnedGhost && isGhostSize {
-                // We only allow "False Quit" feedback to override universal ghosts IF the window is ONSCREEN.
-                // If it's on another space (off-screen), we continue to treat it as a ghost to avoid "Can't Quit" loops.
-                if sensitivityMult < 0.75 && isOnScreen {
-                    Settings.shared.log("   -> Universal ghost size (\(Int(width))x\(Int(height))) considered POSSIBLY REAL due to False Quit reports.")
+                // We allow "False Quit" feedback to override universal ghosts.
+                // We used to require isOnScreen, but if a user says it's a false quit, 
+                // we should trust them even for off-screen windows.
+                if sensitivityMult < 0.75 {
+                    Settings.shared.log("   -> Universal ghost size (\(Int(width))x\(Int(height))) considered POSSIBLY REAL due to multiple False Quit reports (\(isOnScreen ? "onscreen" : "offscreen")).")
                 } else {
-                    continue // Trust the universal ghost list (especially if off-screen)
+                    // Settings.shared.log("   -> Skipped universal ghost size: \(Int(width))x\(Int(height)) (PID: \(pid))")
+                    continue // Trust the universal ghost list
                 }
             } else if learnedGhost {
-                // If the user has reported "False Quit" multiple times, we stop trusting even learned ghosts
-                // but ONLY if they are ONSCREEN.
-                if sensitivityMult < 0.5 && isOnScreen {
-                    Settings.shared.log("   -> Learned ghost size (\(Int(width))x\(Int(height))) RECLAIMED as real due to repeated False Quits.")
+                // If the user has reported "False Quit" multiple times, we stop trusting even learned ghosts.
+                if sensitivityMult < 0.5 {
+                    Settings.shared.log("   -> Learned ghost size (\(Int(width))x\(Int(height))) RECLAIMED as real due to repeated False Quits (\(isOnScreen ? "onscreen" : "offscreen")).")
                 } else {
                     continue // Always trust user-learned ghosts
                 }

@@ -246,125 +246,208 @@ struct AppListSettingsView: View {
                 .foregroundColor(.secondary)
             
             VStack(spacing: 0) {
-                List(selection: $selection) {
-                    ForEach(settings.excludedApps.sorted { 
-                        resolveAppInfo(for: $0).name.localizedStandardCompare(resolveAppInfo(for: $1).name) == .orderedAscending
-                    }, id: \.self) { identifier in
-                        HStack {
-                            AppListRow(identifier: identifier)
-                            Spacer()
-                            let info = resolveAppInfo(for: identifier)
-                            if let ft = feedback.lastFeedbackType(for: info.bundleID ?? identifier) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: ft == .falseQuit ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                                        .foregroundColor(ft == .falseQuit ? .orange : .green)
-                                        .font(.caption2)
-                                    Text(settings.localizedString(ft == .falseQuit ? "feedback_false_quit" : "feedback_cant_quit"))
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Button {
-                                        let bID = info.bundleID ?? identifier
-                                        feedback.undoFeedback(for: bID)
-                                    } label: {
-                                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                ScrollViewReader { proxy in
+                    List(selection: $selection) {
+                        ForEach(settings.excludedApps.sorted { 
+                            resolveAppInfo(for: $0).name.localizedStandardCompare(resolveAppInfo(for: $1).name) == .orderedAscending
+                        }, id: \.self) { identifier in
+                            HStack {
+                                AppListRow(identifier: identifier)
+                                Spacer()
+                                let info = resolveAppInfo(for: identifier)
+                                if let ft = feedback.lastFeedbackType(for: info.bundleID ?? identifier) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: ft == .falseQuit ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                            .foregroundColor(ft == .falseQuit ? .orange : .green)
                                             .font(.caption2)
-                                            .foregroundColor(.secondary.opacity(0.8))
+                                        Text(settings.localizedString(ft == .falseQuit ? "feedback_false_quit" : "feedback_cant_quit"))
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Button {
+                                            let bID = info.bundleID ?? identifier
+                                            feedback.undoFeedback(for: bID)
+                                        } label: {
+                                            Image(systemName: "arrow.uturn.backward.circle.fill")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary.opacity(0.8))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help(settings.localizedString("btn_undo_feedback"))
                                     }
-                                    .buttonStyle(.plain)
-                                    .help(settings.localizedString("btn_undo_feedback"))
+                                    .padding(.horizontal, 4)
                                 }
-                                .padding(.horizontal, 4)
-                            }
 
-                            Menu {
-                                Button(settings.localizedString("btn_false_quit")) {
-                                    let info = resolveAppInfo(for: identifier)
-                                    FeedbackEngine.shared.reportFalseQuit(
-                                        bundleID: info.bundleID ?? identifier,
-                                        appName: info.name,
-                                        bundlePath: identifier.hasPrefix("/") ? identifier : nil
-                                    )
+                                Menu {
+                                    Button(settings.localizedString("btn_false_quit")) {
+                                        let info = resolveAppInfo(for: identifier)
+                                        FeedbackEngine.shared.reportFalseQuit(
+                                            bundleID: info.bundleID ?? identifier,
+                                            appName: info.name,
+                                            bundlePath: identifier.hasPrefix("/") ? identifier : nil
+                                        )
+                                    }
+                                    Button(settings.localizedString("btn_cant_quit")) {
+                                        let info = resolveAppInfo(for: identifier)
+                                        let bundleID = info.bundleID ?? identifier
+                                        // Try to find the actual running PID
+                                        let pid = NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == bundleID }?.processIdentifier
+                                        FeedbackEngine.shared.reportCantQuit(
+                                            bundleID: bundleID,
+                                            appName: info.name,
+                                            pid: pid
+                                        )
+                                    }
+                                } label: {
+                                    Text(settings.localizedString("btn_feedback"))
+                                        .font(.caption)
                                 }
-                                Button(settings.localizedString("btn_cant_quit")) {
-                                    let info = resolveAppInfo(for: identifier)
-                                    let bundleID = info.bundleID ?? identifier
-                                    // Try to find the actual running PID
-                                    let pid = NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == bundleID }?.processIdentifier
-                                    FeedbackEngine.shared.reportCantQuit(
-                                        bundleID: bundleID,
-                                        appName: info.name,
-                                        pid: pid
-                                    )
+                                .menuStyle(.borderlessButton)
+                                .fixedSize()
+                            }
+                            .id(identifier)
+                            .tag(identifier)
+                        }
+                    }
+                    .listStyle(.inset)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+                    
+                    // Toolbar with + / -
+                    HStack(spacing: 0) {
+                        Group {
+                            plusButton(proxy: proxy)
+                            
+                            Divider()
+                                .frame(height: 14)
+                            
+                            Button {
+                                if let sel = selection {
+                                    if let index = settings.excludedApps.firstIndex(of: sel) {
+                                        settings.excludedApps.remove(at: index)
+                                        selection = nil
+                                    }
                                 }
                             } label: {
-                                Text(settings.localizedString("btn_feedback"))
-                                    .font(.caption)
+                                Image(systemName: "minus")
+                                    .frame(width: 32, height: 24)
+                                    .contentShape(Rectangle())
                             }
-                            .menuStyle(.borderlessButton)
-                            .fixedSize()
+                            .buttonStyle(.plain)
+                            .disabled(selection == nil)
                         }
-                        .tag(identifier)
+                        Spacer()
                     }
+                    .frame(height: 28)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color(NSColor.separatorColor)),
+                        alignment: .top
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
                 }
-                .listStyle(.inset)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(4)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
-                
-                // Toolbar with + / -
-                HStack(spacing: 0) {
-                    Group {
-                        Button {
-                            addApp()
-                        } label: {
-                            Image(systemName: "plus")
-                                .frame(width: 32, height: 24)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        
-                        Divider()
-                            .frame(height: 14)
-                        
-                        Button {
-                            if let sel = selection {
-                                if let index = settings.excludedApps.firstIndex(of: sel) {
-                                    settings.excludedApps.remove(at: index)
-                                    selection = nil
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "minus")
-                                .frame(width: 32, height: 24)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(selection == nil)
-                    }
-                    Spacer()
-                }
-                .frame(height: 28)
-                .background(Color(NSColor.controlBackgroundColor))
-                .overlay(
-                    Rectangle()
-                        .frame(height: 1)
-                        .foregroundColor(Color(NSColor.separatorColor)),
-                    alignment: .top
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
             }
         }
         .padding()
     }
     
-    private func addApp() {
+    @ViewBuilder
+    private func plusButton(proxy: ScrollViewProxy) -> some View {
+        let menu = Menu {
+            let apps = runningApps
+            if !apps.isEmpty {
+                if #available(macOS 12.0, *) {
+                    Section(settings.localizedString("running_apps")) {
+                        runningAppsList(apps: apps, proxy: proxy)
+                    }
+                } else {
+                    runningAppsList(apps: apps, proxy: proxy)
+                    Divider()
+                }
+            }
+            
+            Button(settings.localizedString("btn_browse")) {
+                addApp(proxy: proxy)
+            }
+        } label: {
+            Image(systemName: "plus")
+                .frame(width: 32, height: 24)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .frame(width: 32, height: 24)
+        
+        #if os(macOS)
+        if #available(macOS 12.0, *) {
+            menu.menuIndicator(.hidden)
+        } else {
+            menu
+        }
+        #else
+        menu
+        #endif
+    }
+    
+    @ViewBuilder
+    private func runningAppsList(apps: [NSRunningApplication], proxy: ScrollViewProxy) -> some View {
+        ForEach(apps, id: \.self) { app in
+            Button {
+                if let path = app.bundleURL?.path {
+                    if !settings.excludedApps.contains(path) {
+                        settings.excludedApps.append(path)
+                        selectAndScroll(to: path, proxy: proxy)
+                    }
+                }
+            } label: {
+                let icon = app.icon ?? NSWorkspace.shared.icon(forFileType: "app")
+                Label {
+                    Text(app.localizedName ?? "Unknown")
+                } icon: {
+                    Image(nsImage: icon)
+                }
+            }
+        }
+    }
+    
+    private func selectAndScroll(to id: String, proxy: ScrollViewProxy) {
+        selection = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation {
+                proxy.scrollTo(id, anchor: .center)
+            }
+        }
+    }
+    
+    private var runningApps: [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications.filter { app in
+            guard app.activationPolicy == .regular,
+                  let bundleURL = app.bundleURL else { return false }
+            
+            let path = bundleURL.path
+            let bundleID = app.bundleIdentifier
+            
+            // Filter out apps already in list
+            let alreadyInList = settings.excludedApps.contains { existing in
+                existing == path || (bundleID != nil && existing == bundleID)
+            }
+            
+            // Filter out ourselves
+            let isSelf = bundleID == Bundle.main.bundleIdentifier
+            
+            return !alreadyInList && !isSelf
+        }.sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+    }
+    
+    private func addApp(proxy: ScrollViewProxy) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -373,10 +456,15 @@ struct AppListSettingsView: View {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         
         if panel.runModal() == .OK {
+            var lastAdded: String?
             for url in panel.urls {
                 if !settings.excludedApps.contains(url.path) {
                     settings.excludedApps.append(url.path)
+                    lastAdded = url.path
                 }
+            }
+            if let id = lastAdded {
+                selectAndScroll(to: id, proxy: proxy)
             }
         }
     }
