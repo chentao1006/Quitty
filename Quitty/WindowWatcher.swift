@@ -25,6 +25,39 @@ private class ObserverContext {
     }
 }
 
+private struct DurationMetric {
+    var count = 0
+    var totalDuration: TimeInterval = 0
+
+    mutating func record(_ duration: TimeInterval) {
+        count += 1
+        totalDuration += duration
+    }
+
+    var averageDuration: TimeInterval {
+        guard count > 0 else { return 0 }
+        return totalDuration / Double(count)
+    }
+}
+
+private struct AppPerformanceStats {
+    var initialWindowChecks = DurationMetric()
+    var axWindowChecks = DurationMetric()
+    var cgWindowChecks = DurationMetric()
+    var notificationCount = 0
+    var rescueScanCount = 0
+
+    var totalTrackedDuration: TimeInterval {
+        initialWindowChecks.totalDuration + axWindowChecks.totalDuration + cgWindowChecks.totalDuration
+    }
+}
+
+private struct AppMetadata {
+    let displayName: String
+    let bundleIdentifier: String?
+    let bundlePath: String?
+}
+
 class WindowWatcher {
 
     // One AXObserver per running app PID - ALWAYS access on Main Thread
@@ -36,6 +69,10 @@ class WindowWatcher {
     private var lastHookTimes: [pid_t: Date] = [:] // When we started watching this app
     private var lastCheckTimes: [pid_t: Date] = [:] // Anti-spam for checkAndQuit
     private var lastSpaceChangeDate = Date.distantPast
+    private var performanceByApp: [String: AppPerformanceStats] = [:]
+    private var metadataByApp: [String: AppMetadata] = [:]
+    private var performanceHistoryByApp: [String: [Double]] = [:]
+    private var lastHistorySampleDate = Date.distantPast
     private var refreshTimer: Timer?
     private let queue = DispatchQueue(label: "com.quitty.watcher", qos: .userInitiated, attributes: .concurrent)
 
@@ -94,6 +131,10 @@ class WindowWatcher {
             self.refreshTimer = nil
             self.maintenanceTimer?.invalidate()
             self.maintenanceTimer = nil
+            self.performanceByApp.removeAll()
+            self.metadataByApp.removeAll()
+            self.performanceHistoryByApp.removeAll()
+            Settings.shared.updateWatcherDiagnostics([])
         }
     }
 
@@ -120,6 +161,11 @@ class WindowWatcher {
             }
             self.pendingQuits.removeAll()
             self.quitGenerations.removeAll()
+            self.performanceByApp.removeAll()
+            self.metadataByApp.removeAll()
+            self.performanceHistoryByApp.removeAll()
+            self.lastHistorySampleDate = Date.distantPast
+            Settings.shared.updateWatcherDiagnostics([])
 
             // 3. Reset heuristic tracking
             self.armedPids.removeAll()
@@ -202,6 +248,100 @@ class WindowWatcher {
         self.pendingQuits.removeValue(forKey: pid)
     }
 
+    private func metricKey(for app: NSRunningApplication) -> String {
+        let bundleID = app.bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !bundleID.isEmpty {
+            return bundleID
+        }
+        return app.localizedName ?? "pid:\(app.processIdentifier)"
+    }
+
+    private func mutatePerformance(for app: NSRunningApplication, _ update: @escaping (inout AppPerformanceStats) -> Void) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self, weak app] in
+                guard let self = self, let app = app else { return }
+                self.mutatePerformance(for: app, update)
+            }
+            return
+        }
+
+        let key = metricKey(for: app)
+        var stats = performanceByApp[key] ?? AppPerformanceStats()
+        update(&stats)
+        performanceByApp[key] = stats
+        metadataByApp[key] = AppMetadata(
+            displayName: app.localizedName ?? key,
+            bundleIdentifier: app.bundleIdentifier,
+            bundlePath: app.bundleURL?.path
+        )
+        publishPerformanceDiagnostics()
+    }
+
+    private func recordDuration(_ duration: TimeInterval, for app: NSRunningApplication, metricPath: WritableKeyPath<AppPerformanceStats, DurationMetric>) {
+        mutatePerformance(for: app) { stats in
+            var metric = stats[keyPath: metricPath]
+            metric.record(duration)
+            stats[keyPath: metricPath] = metric
+        }
+    }
+
+    private func publishPerformanceDiagnostics() {
+        guard Settings.shared.isWatcherDiagnosticsVisible else { return }
+
+        let now = Date()
+        let shouldSampleHistory = now.timeIntervalSince(lastHistorySampleDate) >= 30
+        let topApps = performanceByApp
+            .filter { $0.value.totalTrackedDuration > 0 || $0.value.notificationCount > 0 || $0.value.rescueScanCount > 0 }
+            .sorted { $0.value.totalTrackedDuration > $1.value.totalTrackedDuration }
+
+        if shouldSampleHistory {
+            for (key, stats) in topApps {
+                var history = performanceHistoryByApp[key] ?? []
+                history.append(loadScore(for: stats))
+                if history.count > 24 {
+                    history.removeFirst(history.count - 24)
+                }
+                performanceHistoryByApp[key] = history
+            }
+            lastHistorySampleDate = now
+        }
+
+        let rows = topApps.prefix(8).map { key, stats in
+            let metadata = metadataByApp[key]
+            return WatcherDiagnosticRow(
+                id: key,
+                appName: metadata?.displayName ?? key,
+                bundleIdentifier: metadata?.bundleIdentifier,
+                bundlePath: metadata?.bundlePath,
+                totalTrackedMs: Int(stats.totalTrackedDuration * 1000),
+                loadHistory: performanceHistoryByApp[key] ?? [loadScore(for: stats)],
+                axChecks: stats.axWindowChecks.count,
+                axAverageMs: Int(stats.axWindowChecks.averageDuration * 1000),
+                cgChecks: stats.cgWindowChecks.count,
+                cgAverageMs: Int(stats.cgWindowChecks.averageDuration * 1000),
+                rescueScans: stats.rescueScanCount,
+                notifications: stats.notificationCount,
+                duplicateSkips: 0
+            )
+        }
+
+        Settings.shared.updateWatcherDiagnostics(rows)
+    }
+
+    func refreshDiagnosticsDisplay() {
+        DispatchQueue.main.async {
+            self.publishPerformanceDiagnostics()
+        }
+    }
+
+    private func loadScore(for stats: AppPerformanceStats) -> Double {
+        let totalTrackedMs = stats.totalTrackedDuration * 1000
+        let combined = totalTrackedMs
+            + Double(stats.cgWindowChecks.count * 45)
+            + Double(stats.rescueScanCount * 8)
+        return min(max(combined / 2200.0, 0), 1)
+    }
+
     private func periodicCheck() {
         let activeApps = NSWorkspace.shared.runningApplications
         for app in activeApps {
@@ -212,6 +352,7 @@ class WindowWatcher {
             if observers[pid] != nil && !app.isActive && !app.isHidden {
                 // If it's been armed at some point but currently reports 0 windows, trigger a check
                 if armedPids.contains(pid) {
+                    mutatePerformance(for: app) { $0.rescueScanCount += 1 }
                     self.checkAndQuit(app: app)
                 }
             }
@@ -392,6 +533,7 @@ class WindowWatcher {
         // Give the app a bit of time to settle AX tree
         queue.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self = self else { return }
+            let start = Date()
             let axApp = AXUIElementCreateApplication(pid)
             var windows: CFTypeRef?
             _ = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
@@ -413,6 +555,10 @@ class WindowWatcher {
                 // that are still initializing their AX tree when we hook them.
                 self.checkInitialWindows(pid: pid, retries: retries - 1)
             }
+
+            if let app = NSRunningApplication(processIdentifier: pid) {
+                self.recordDuration(Date().timeIntervalSince(start), for: app, metricPath: \AppPerformanceStats.initialWindowChecks)
+            }
         }
     }
 
@@ -422,6 +568,8 @@ class WindowWatcher {
         guard let app = NSRunningApplication(processIdentifier: pid) else { 
             return 
         }
+
+        mutatePerformance(for: app) { $0.notificationCount += 1 }
 
         if notification == (kAXWindowCreatedNotification as String) {
             Settings.shared.log("Window created for \(app.localizedName ?? "app"). Arming and cancelling pending quit.")
@@ -507,6 +655,7 @@ class WindowWatcher {
         queue.async { [weak self] in
             autoreleasepool {
                 guard let self = self else { return }
+                let start = Date()
                 
                 // Get window list using Accessibility API
                 let axApp = AXUIElementCreateApplication(pid)
@@ -523,8 +672,11 @@ class WindowWatcher {
                 }.count
             } else if err != .success && err != .noValue {
                 Settings.shared.log("Warning - Failed to get windows for \(appName): \(err.rawValue)")
+                self.recordDuration(Date().timeIntervalSince(start), for: app, metricPath: \AppPerformanceStats.axWindowChecks)
                 return // Safety: don't quit if we can't be sure
             }
+
+            self.recordDuration(Date().timeIntervalSince(start), for: app, metricPath: \AppPerformanceStats.axWindowChecks)
 
             if windowCount > 0 {
                 DispatchQueue.main.async {
@@ -599,12 +751,14 @@ class WindowWatcher {
                     return
                 }
 
+                let axStart = Date()
                 let axApp = AXUIElementCreateApplication(pid)
                 var windows: CFTypeRef?
                 let res = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
                 
                 if res != .success && res != .noValue {
                     Settings.shared.log("Final check failed to get windows for \(appName). Aborting termination.")
+                    self.recordDuration(Date().timeIntervalSince(axStart), for: app, metricPath: \AppPerformanceStats.axWindowChecks)
                     DispatchQueue.main.async {
                         self.pendingQuits.removeValue(forKey: pid)
                     }
@@ -618,16 +772,21 @@ class WindowWatcher {
                     let s = sub as? String ?? ""
                     return s != kAXSheetSubrole && s != kAXDrawerSubrole
                 }.count
+                self.recordDuration(Date().timeIntervalSince(axStart), for: app, metricPath: \AppPerformanceStats.axWindowChecks)
                 
                 if count == 0 {
                     // LAST STAND: Cross-verify with low-level CGWindowList.
+                    let cgStart = Date()
                     if self.isActualWindowPresent(pid: pid) {
                         Settings.shared.log("AX reported 0 but CGWindowList found windows for \(appName). Aborting.")
+                        self.recordDuration(Date().timeIntervalSince(cgStart), for: app, metricPath: \AppPerformanceStats.cgWindowChecks)
                         DispatchQueue.main.async {
                             self.pendingQuits.removeValue(forKey: pid)
                         }
                         return
                     }
+
+                    self.recordDuration(Date().timeIntervalSince(cgStart), for: app, metricPath: \AppPerformanceStats.cgWindowChecks)
 
                     Settings.shared.log("Final check confirmed 0 windows for \(appName). Terminating.")
                     DispatchQueue.main.async {

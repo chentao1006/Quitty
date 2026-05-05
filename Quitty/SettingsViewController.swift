@@ -57,6 +57,27 @@ struct SettingsView: View {
         .id(settings.appLanguage)
         .frame(minWidth: 650, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .animation(.easeInOut(duration: 0.2), value: selectedTab)
+        .onAppear {
+            syncWatcherDiagnosticsVisibility()
+        }
+        .onChange(of: selectedTab) { _ in
+            syncWatcherDiagnosticsVisibility()
+        }
+        .onDisappear {
+            settings.isWatcherDiagnosticsVisible = false
+            settings.clearWatcherDiagnostics()
+        }
+    }
+
+    private func syncWatcherDiagnosticsVisibility() {
+        let isVisible = selectedTab == 3
+        settings.isWatcherDiagnosticsVisible = isVisible
+
+        if isVisible {
+            (NSApplication.shared.delegate as? AppDelegate)?.windowWatcher.refreshDiagnosticsDisplay()
+        } else {
+            settings.clearWatcherDiagnostics()
+        }
     }
 }
 
@@ -66,108 +87,65 @@ struct GeneralSettingsView: View {
     var body: some View {
         #if os(macOS)
         if #available(macOS 13.0, *) {
-            Form {
-                Section {
-                    Toggle(settings.localizedString("launch_at_login"), isOn: $settings.launchAtLogin)
-                    Toggle(settings.localizedString("launch_hidden"), isOn: $settings.launchHidden)
-                    Toggle(settings.localizedString("show_menubar_icon"), isOn: $settings.menubarIconEnabled)
-                    
-                    Picker(settings.localizedString("language"), selection: $settings.appLanguage) {
-                        Text(settings.localizedString("lang_system")).tag("system")
-                        Text(settings.localizedString("lang_en")).tag("en")
-                        Text(settings.localizedString("lang_zh")).tag("zh")
-                    }
-                } header: {
-                    Text(settings.localizedString("section_general"))
-                }
-                
-
-                Section {
-                    HStack {
-                        Text(settings.localizedString("accessibility_access"))
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(settings.isAccessibilityAuthorized ? Color.green : Color.red)
-                                .frame(width: 8, height: 8)
-                            Text(settings.localizedString(settings.isAccessibilityAuthorized ? "status_authorized" : "status_unauthorized"))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button(settings.localizedString(settings.isAccessibilityAuthorized ? "btn_check" : "btn_grant")) {
-                            if let delegate = NSApplication.shared.delegate as? AppDelegate {
-                                delegate.checkAccessibilityPermissions(silent: false)
-                                settings.objectWillChange.send()
-                            }
-                        }
-                        
-                        if !settings.isAccessibilityAuthorized {
-                            Text(settings.localizedString("permission_desc"))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text(settings.localizedString("section_permissions"))
-                }
-            }
+            generalFormBody
             .formStyle(.grouped)
         } else {
-            Form {
-                Section {
-                    Toggle(settings.localizedString("launch_at_login"), isOn: $settings.launchAtLogin)
-                    Toggle(settings.localizedString("launch_hidden"), isOn: $settings.launchHidden)
-                    Toggle(settings.localizedString("show_menubar_icon"), isOn: $settings.menubarIconEnabled)
-                    
-                    Picker(settings.localizedString("language"), selection: $settings.appLanguage) {
-                        Text(settings.localizedString("lang_system")).tag("system")
-                        Text(settings.localizedString("lang_en")).tag("en")
-                        Text(settings.localizedString("lang_zh")).tag("zh")
-                    }
-                } header: {
-                    Text(settings.localizedString("section_general"))
-                }
-                
-
-                Section {
-                    HStack {
-                        Text(settings.localizedString("accessibility_access"))
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(settings.isAccessibilityAuthorized ? Color.green : Color.red)
-                                .frame(width: 8, height: 8)
-                            Text(settings.localizedString(settings.isAccessibilityAuthorized ? "status_authorized" : "status_unauthorized"))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button(settings.localizedString(settings.isAccessibilityAuthorized ? "btn_check" : "btn_grant")) {
-                            if let delegate = NSApplication.shared.delegate as? AppDelegate {
-                                delegate.checkAccessibilityPermissions(silent: false)
-                                settings.objectWillChange.send()
-                            }
-                        }
-                        
-                        if !settings.isAccessibilityAuthorized {
-                            Text(settings.localizedString("permission_desc"))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                } header: {
-                    Text(settings.localizedString("section_permissions"))
-                }
-            }
+            generalFormBody
         }
         #endif
+    }
+
+    private var generalFormBody: some View {
+        Form {
+            Section {
+                Toggle(settings.localizedString("launch_at_login"), isOn: $settings.launchAtLogin)
+                Toggle(settings.localizedString("launch_hidden"), isOn: $settings.launchHidden)
+                Toggle(settings.localizedString("show_menubar_icon"), isOn: $settings.menubarIconEnabled)
+
+                Picker(settings.localizedString("language"), selection: $settings.appLanguage) {
+                    Text(settings.localizedString("lang_system")).tag("system")
+                    Text(settings.localizedString("lang_en")).tag("en")
+                    Text(settings.localizedString("lang_zh")).tag("zh")
+                }
+            } header: {
+                Text(settings.localizedString("section_general"))
+            }
+
+            Section {
+                HStack {
+                    Text(settings.localizedString("accessibility_access"))
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(settings.isAccessibilityAuthorized ? Color.green : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(settings.localizedString(settings.isAccessibilityAuthorized ? "status_authorized" : "status_unauthorized"))
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Button(settings.localizedString(settings.isAccessibilityAuthorized ? "btn_check" : "btn_grant")) {
+                        if let delegate = NSApplication.shared.delegate as? AppDelegate {
+                            delegate.checkAccessibilityPermissions(silent: false)
+                            settings.objectWillChange.send()
+                        }
+                    }
+
+                    if !settings.isAccessibilityAuthorized {
+                        Text(settings.localizedString("permission_desc"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text(settings.localizedString("section_permissions"))
+            }
+
+            SyncBackupSectionView(settings: settings)
+        }
     }
 }
 
@@ -529,19 +507,186 @@ struct DataSettingsView: View {
     @ObservedObject var settings: Settings
     
     var body: some View {
-        #if os(macOS)
-        if #available(macOS 13.0, *) {
-            formBody.formStyle(.grouped)
-        } else {
-            formBody
+        VStack(alignment: .leading, spacing: 12) {
+            Text(settings.localizedString("section_live_monitor"))
+                .font(.headline)
+
+            HStack(alignment: .top, spacing: 14) {
+                diagnosticsPane
+                logsPane
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        #else
-        formBody
-        #endif
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-    
-    private var formBody: some View {
-        Form {
+
+    private static let diagnosticsDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm:ss"
+        return formatter
+    }()
+
+    private var diagnosticsPane: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(settings.localizedString("diag_performance_title"))
+                    .font(.headline)
+                Spacer()
+                if let updatedAt = settings.watcherDiagnosticsUpdatedAt {
+                    Text(Self.diagnosticsDateFormatter.string(from: updatedAt))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Text(settings.localizedString("diag_performance_desc"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Group {
+                if settings.watcherDiagnostics.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(settings.localizedString("diag_empty_title"))
+                            .font(.subheadline).bold()
+                        Text(settings.localizedString("diag_empty_desc"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(10)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                    )
+                } else {
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ForEach(settings.watcherDiagnostics) { row in
+                                WatcherDiagnosticCard(settings: settings, row: row)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var logsPane: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(settings.localizedString("section_logs"))
+                .font(.headline)
+
+            Text(settings.localizedString("diag_logs_desc"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(settings.logs) { entry in
+                            if #available(macOS 12.0, *) {
+                                Text(entry.line)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(logColor(for: entry.tone))
+                                    .textSelection(.enabled)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            } else {
+                                Text(entry.line)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(logColor(for: entry.tone))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+
+                        Color.clear
+                            .frame(height: 1)
+                            .id("logBottom")
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.textBackgroundColor))
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                )
+                .onChange(of: settings.logs.count) { _ in
+                    proxy.scrollTo("logBottom", anchor: .bottom)
+                }
+                .onAppear {
+                    proxy.scrollTo("logBottom", anchor: .bottom)
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button(settings.localizedString("btn_export_logs")) {
+                    exportLogs()
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
+
+                Divider()
+                    .frame(height: 10)
+
+                Button(settings.localizedString("btn_clear_logs")) {
+                    settings.logs.removeAll()
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func exportLogs() {
+        let savePanel = NSSavePanel()
+        if #available(macOS 11.0, *) {
+            savePanel.allowedContentTypes = [UTType(filenameExtension: "log") ?? .plainText]
+        } else {
+            savePanel.allowedFileTypes = ["log"]
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
+        let dateStr = formatter.string(from: Date())
+        savePanel.nameFieldStringValue = "quitty_logs_\(dateStr).log"
+        
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            let logContent = settings.exportedLogsText
+            try? logContent.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private func logColor(for tone: LogTone) -> Color {
+        switch tone {
+        case .success:
+            return .green
+        case .warning:
+            return .orange
+        case .failure:
+            return .red
+        case .neutral:
+            return .secondary
+        }
+    }
+}
+
+private struct SyncBackupSectionView: View {
+    @ObservedObject var settings: Settings
+
+    var body: some View {
+        Group {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle(settings.localizedString("icloud_sync"), isOn: $settings.iCloudSyncEnabled)
@@ -565,71 +710,6 @@ struct DataSettingsView: View {
             } header: {
                 Text(settings.localizedString("section_backup"))
             }
-
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                #if os(macOS)
-                                if #available(macOS 12.0, *) {
-                                    Text(settings.logs.joined(separator: "\n"))
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .textSelection(.enabled)
-                                        .padding(8)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                } else {
-                                    Text(settings.logs.joined(separator: "\n"))
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.secondary)
-                                        .padding(8)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                #endif
-                                
-                                Color.clear
-                                    .frame(height: 1)
-                                    .id("logBottom")
-                            }
-                        }
-                        .frame(height: 200)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .cornerRadius(4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                        )
-                        .onChange(of: settings.logs.count) { _ in
-                            proxy.scrollTo("logBottom", anchor: .bottom)
-                        }
-                        .onAppear {
-                            proxy.scrollTo("logBottom", anchor: .bottom)
-                        }
-                    }
-                    
-                    HStack {
-                        Spacer()
-                        Button(settings.localizedString("btn_export_logs")) {
-                            exportLogs()
-                        }
-                        .buttonStyle(.borderless)
-                        .font(.caption)
-                        
-                        Divider()
-                            .frame(height: 10)
-                        
-                        Button(settings.localizedString("btn_clear_logs")) {
-                            settings.logs.removeAll()
-                        }
-                        .buttonStyle(.borderless)
-                        .font(.caption)
-                    }
-                }
-                .padding(.vertical, 4)
-            } header: {
-                Text(settings.localizedString("section_logs"))
-            }
         }
     }
 
@@ -641,7 +721,7 @@ struct DataSettingsView: View {
             savePanel.allowedFileTypes = ["json"]
         }
         savePanel.nameFieldStringValue = "quitty_settings.json"
-        
+
         if savePanel.runModal() == .OK, let url = savePanel.url {
             if let data = settings.exportToJSON() {
                 try? data.write(to: url)
@@ -659,30 +739,154 @@ struct DataSettingsView: View {
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        
+
         if openPanel.runModal() == .OK, let url = openPanel.url {
             if let data = try? Data(contentsOf: url) {
                 _ = settings.importFromJSON(data: data)
             }
         }
     }
+}
 
-    private func exportLogs() {
-        let savePanel = NSSavePanel()
-        if #available(macOS 11.0, *) {
-            savePanel.allowedContentTypes = [UTType(filenameExtension: "log") ?? .plainText]
-        } else {
-            savePanel.allowedFileTypes = ["log"]
+private struct WatcherDiagnosticCard: View {
+    let settings: Settings
+    let row: WatcherDiagnosticRow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                HStack(spacing: 10) {
+                    DiagnosticAppIcon(row: row)
+
+                    Text(row.appName)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Text(settings.localizedString(loadLabelKey))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(loadColor)
+            }
+
+            SparklineChart(values: row.loadHistory, tint: loadColor)
+                .frame(height: 34)
+
+            Text(detailLine)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
         }
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
-        let dateStr = formatter.string(from: Date())
-        savePanel.nameFieldStringValue = "quitty_logs_\(dateStr).log"
-        
-        if savePanel.runModal() == .OK, let url = savePanel.url {
-            let logContent = settings.logs.joined(separator: "\n")
-            try? logContent.write(to: url, atomically: true, encoding: .utf8)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(NSColor.textBackgroundColor))
+        .cornerRadius(6)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+        )
+    }
+
+    private var totalLoadRatio: Double {
+        let combined = row.totalTrackedMs + row.cgChecks * 45 + row.rescueScans * 8 + row.duplicateSkips * 3
+        return normalized(value: combined, softCap: 2200)
+    }
+
+    private var loadLabelKey: String {
+        switch totalLoadRatio {
+        case 0..<0.25:
+            return "diag_load_good"
+        case 0.25..<0.55:
+            return "diag_load_ok"
+        case 0.55..<0.8:
+            return "diag_load_busy"
+        default:
+            return "diag_load_hot"
+        }
+    }
+
+    private var loadColor: Color {
+        switch totalLoadRatio {
+        case 0..<0.25:
+            return .green
+        case 0.25..<0.55:
+            return .yellow
+        case 0.55..<0.8:
+            return .orange
+        default:
+            return .red
+        }
+    }
+
+    private var detailLine: String {
+        settings.localizedString("diag_detail_format")
+            .replacingOccurrences(of: "%1$@", with: "\(row.axChecks + row.cgChecks)")
+            .replacingOccurrences(of: "%2$@", with: "\(row.cgChecks)")
+            .replacingOccurrences(of: "%3$@", with: "\(row.rescueScans)")
+    }
+
+    private func normalized(value: Int, softCap: Int) -> Double {
+        guard softCap > 0 else { return 0 }
+        return min(max(Double(value) / Double(softCap), 0), 1)
+    }
+}
+
+private struct DiagnosticAppIcon: View {
+    let row: WatcherDiagnosticRow
+
+    var body: some View {
+        Image(nsImage: icon)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 28, height: 28)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var icon: NSImage {
+        let workspace = NSWorkspace.shared
+
+        if let bundlePath = row.bundlePath, !bundlePath.isEmpty {
+            return workspace.icon(forFile: bundlePath)
+        }
+
+        if let bundleIdentifier = row.bundleIdentifier,
+           let url = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            return workspace.icon(forFile: url.path)
+        }
+
+        return workspace.icon(forFileType: "app")
+    }
+}
+
+private struct SparklineChart: View {
+    let values: [Double]
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.secondary.opacity(0.08))
+
+                if values.count >= 2 {
+                    Path { path in
+                        for (index, value) in values.enumerated() {
+                            let x = geometry.size.width * CGFloat(index) / CGFloat(max(values.count - 1, 1))
+                            let y = geometry.size.height * (1 - CGFloat(min(max(value, 0), 1)))
+                            if index == 0 {
+                                path.move(to: CGPoint(x: x, y: y))
+                            } else {
+                                path.addLine(to: CGPoint(x: x, y: y))
+                            }
+                        }
+                    }
+                    .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                } else {
+                    Capsule()
+                        .fill(tint.opacity(0.4))
+                        .frame(width: geometry.size.width, height: 4)
+                        .offset(y: -8)
+                }
+            }
         }
     }
 }

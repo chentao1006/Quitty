@@ -283,6 +283,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 2. Clear old logs in Settings to free memory
         Settings.shared.logs.removeAll()
+        Settings.shared.clearWatcherDiagnostics()
         
         // 3. Suggest to the system to reclaim memory
         autoreleasepool {

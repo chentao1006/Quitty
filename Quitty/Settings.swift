@@ -8,27 +8,103 @@ import SwiftUI
 import ServiceManagement
 import Cocoa
 
+struct WatcherDiagnosticRow: Identifiable {
+    let id: String
+    let appName: String
+    let bundleIdentifier: String?
+    let bundlePath: String?
+    let totalTrackedMs: Int
+    let loadHistory: [Double]
+    let axChecks: Int
+    let axAverageMs: Int
+    let cgChecks: Int
+    let cgAverageMs: Int
+    let rescueScans: Int
+    let notifications: Int
+    let duplicateSkips: Int
+}
+
+enum LogTone {
+    case neutral
+    case success
+    case warning
+    case failure
+}
+
+struct LogEntry: Identifiable {
+    let id = UUID()
+    let timestamp: String
+    let message: String
+    let tone: LogTone
+
+    var line: String {
+        "[\(timestamp)] \(message)"
+    }
+}
+
 class Settings: ObservableObject {
     static let shared = Settings()
     private let defaults = UserDefaults.standard
+    private static let logDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
 
     static let didUpdateNotification = Notification.Name("QuittySettingsDidUpdate")
     
     // Captured logs for UI display
-    @Published var logs: [String] = []
+    @Published var logs: [LogEntry] = []
+    @Published var watcherDiagnostics: [WatcherDiagnosticRow] = []
+    @Published var watcherDiagnosticsUpdatedAt: Date?
+    var isWatcherDiagnosticsVisible = false
     private let maxLogLines = 100
 
     func log(_ message: String) {
         print("Quitty: \(message)")
         DispatchQueue.main.async {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "HH:mm:ss"
-            let timestamp = formatter.string(from: Date())
-            let line = "[\(timestamp)] \(message)"
-            self.logs.append(line)
+            let timestamp = Self.logDateFormatter.string(from: Date())
+            let entry = LogEntry(timestamp: timestamp, message: message, tone: Self.inferLogTone(for: message))
+            self.logs.append(entry)
             if self.logs.count > self.maxLogLines {
                 self.logs.removeFirst()
             }
+        }
+    }
+
+    var exportedLogsText: String {
+        logs.map(\.line).joined(separator: "\n")
+    }
+
+    private static func inferLogTone(for message: String) -> LogTone {
+        let lowercased = message.lowercased()
+
+        if lowercased.contains("terminating") || lowercased.contains("confirmed 0 windows") || lowercased.contains("completed successfully") {
+            return .success
+        }
+
+        if lowercased.contains("aborting") || lowercased.contains("aborted") || lowercased.contains("skipped") || lowercased.contains("cancel") || lowercased.contains("postponing") || lowercased.contains("deferring") {
+            return .warning
+        }
+
+        if lowercased.contains("error") || lowercased.contains("failed") || lowercased.contains("warning - failed") || lowercased.contains("critical") {
+            return .failure
+        }
+
+        return .neutral
+    }
+
+    func updateWatcherDiagnostics(_ diagnostics: [WatcherDiagnosticRow]) {
+        DispatchQueue.main.async {
+            self.watcherDiagnostics = diagnostics
+            self.watcherDiagnosticsUpdatedAt = diagnostics.isEmpty ? nil : Date()
+        }
+    }
+
+    func clearWatcherDiagnostics() {
+        DispatchQueue.main.async {
+            self.watcherDiagnostics.removeAll()
+            self.watcherDiagnosticsUpdatedAt = nil
         }
     }
 
