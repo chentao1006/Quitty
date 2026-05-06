@@ -33,6 +33,7 @@
 "mode_include" = "Only Listed Apps";
 
 "section_apps" = "APPS";
+"search_apps_placeholder" = "Search apps";
 "btn_add" = "+ Add App";
 "btn_remove" = "- Remove";
 

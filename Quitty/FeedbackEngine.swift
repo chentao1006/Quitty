@@ -357,14 +357,15 @@ class FeedbackEngine: ObservableObject {
         rulesQueue.sync {
             guard let rule = learnedRules[bundleID] else { return 1.0 }
             let net = rule.cantQuitCount - rule.falseQuitCount
-            if net == 0 { return 1.0 }
+            if abs(net) < 2 { return 1.0 }
             if net > 0 {
-                // Cant-quit prone (net positive) -> return > 1.0 -> ignore MORE stuff
-                return 1.0 + CGFloat(min(net, 10)) * 0.4
+                // Require repeated cant-quit feedback before becoming more aggressive,
+                // and clamp the effect so a few reports do not swing to false quits.
+                return min(1.45, 1.0 + CGFloat(min(net - 1, 4)) * 0.15)
             } else {
-                // False-quit prone (net negative) -> return < 1.0 -> ignore LESS stuff
-                // We drop faster to 0.1 for maximum caution
-                return max(0.1, 1.0 + CGFloat(max(net, -10)) * 0.2)
+                // Likewise, make false-quit feedback more conservative without making
+                // the app effectively impossible to quit after a single report.
+                return max(0.7, 1.0 + CGFloat(max(net + 1, -4)) * 0.1)
             }
         }
     }

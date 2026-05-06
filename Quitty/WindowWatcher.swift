@@ -65,6 +65,7 @@ class WindowWatcher {
     private var observerContexts: [pid_t: ObserverContext] = [:]
     private var pendingQuits: [pid_t: DispatchWorkItem] = [:]
     private var quitGenerations: [pid_t: Int] = [:] // Incremented when a pending quit is cancelled
+    private var finalZeroConfirmations: [pid_t: Int] = [:]
     private var armedPids: Set<pid_t> = [] // Apps that have (or had) at least one window
     private var lastHookTimes: [pid_t: Date] = [:] // When we started watching this app
     private var lastCheckTimes: [pid_t: Date] = [:] // Anti-spam for checkAndQuit
@@ -125,6 +126,7 @@ class WindowWatcher {
                 item.cancel()
             }
             self.pendingQuits.removeAll()
+            self.finalZeroConfirmations.removeAll()
             self.periodicCheckCooldowns.removeAll()
 
             NotificationCenter.default.removeObserver(self)
@@ -164,6 +166,7 @@ class WindowWatcher {
             }
             self.pendingQuits.removeAll()
             self.quitGenerations.removeAll()
+            self.finalZeroConfirmations.removeAll()
             self.periodicCheckCooldowns.removeAll()
             self.performanceByApp.removeAll()
             self.metadataByApp.removeAll()
@@ -217,6 +220,7 @@ class WindowWatcher {
                 self.lastHookTimes.removeValue(forKey: pid)
                 self.lastCheckTimes.removeValue(forKey: pid)
                 self.quitGenerations.removeValue(forKey: pid)
+                self.finalZeroConfirmations.removeValue(forKey: pid)
                 self.periodicCheckCooldowns.removeValue(forKey: pid)
             }
             
@@ -260,6 +264,7 @@ class WindowWatcher {
         self.observerContexts.removeValue(forKey: pid)
         self.pendingQuits[pid]?.cancel()
         self.pendingQuits.removeValue(forKey: pid)
+        self.finalZeroConfirmations.removeValue(forKey: pid)
         self.periodicCheckCooldowns.removeValue(forKey: pid)
     }
 
@@ -444,6 +449,7 @@ class WindowWatcher {
             self.pendingQuits[pid]?.cancel()
             self.pendingQuits.removeValue(forKey: pid)
             self.quitGenerations.removeValue(forKey: pid)
+            self.finalZeroConfirmations.removeValue(forKey: pid)
         }
     }
 
@@ -594,6 +600,7 @@ class WindowWatcher {
             Settings.shared.log("Window created for \(app.localizedName ?? "app"). Arming and cancelling pending quit.")
             DispatchQueue.main.async {
                 self.armedPids.insert(pid)
+                self.finalZeroConfirmations.removeValue(forKey: pid)
                 self.periodicCheckCooldowns.removeValue(forKey: pid)
                 self.pendingQuits[pid]?.cancel()
                 self.pendingQuits.removeValue(forKey: pid)
@@ -700,6 +707,7 @@ class WindowWatcher {
 
             if windowCount > 0 {
                 DispatchQueue.main.async {
+                    self.finalZeroConfirmations.removeValue(forKey: pid)
                     self.pendingQuits[pid]?.cancel()
                     self.pendingQuits.removeValue(forKey: pid)
                 }
@@ -801,6 +809,7 @@ class WindowWatcher {
                         Settings.shared.log("AX reported 0 but CGWindowList found windows for \(appName). Aborting.")
                         self.recordDuration(Date().timeIntervalSince(cgStart), for: app, metricPath: \AppPerformanceStats.cgWindowChecks)
                         DispatchQueue.main.async {
+                            self.finalZeroConfirmations.removeValue(forKey: pid)
                             self.periodicCheckCooldowns[pid] = Date().addingTimeInterval(60)
                             self.pendingQuits.removeValue(forKey: pid)
                         }
@@ -809,12 +818,22 @@ class WindowWatcher {
 
                     self.recordDuration(Date().timeIntervalSince(cgStart), for: app, metricPath: \AppPerformanceStats.cgWindowChecks)
                     DispatchQueue.main.async {
+                        let nextConfirmation = (self.finalZeroConfirmations[pid] ?? 0) + 1
+                        self.finalZeroConfirmations[pid] = nextConfirmation
                         self.periodicCheckCooldowns.removeValue(forKey: pid)
-                    }
 
-                    Settings.shared.log("Final check confirmed 0 windows for \(appName). Terminating.")
-                    DispatchQueue.main.async {
-                        // Record termination for history + feedback learning
+                        if nextConfirmation < 2 {
+                            Settings.shared.log("Final check saw 0 windows for \(appName). Waiting for a second confirmation.")
+                            self.pendingQuits.removeValue(forKey: pid)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                                guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
+                                self.checkAndQuit(app: app)
+                            }
+                            return
+                        }
+
+                        Settings.shared.log("Final check confirmed 0 windows twice for \(appName). Terminating.")
+                        self.finalZeroConfirmations.removeValue(forKey: pid)
                         FeedbackEngine.shared.recordTermination(
                             pid: pid,
                             bundleID: app.bundleIdentifier ?? "",
@@ -827,6 +846,7 @@ class WindowWatcher {
                 } else {
                     Settings.shared.log("Final check skipped for \(appName) (Windows found: \(count))")
                     DispatchQueue.main.async {
+                        self.finalZeroConfirmations.removeValue(forKey: pid)
                         self.periodicCheckCooldowns.removeValue(forKey: pid)
                         self.pendingQuits.removeValue(forKey: pid)
                     }

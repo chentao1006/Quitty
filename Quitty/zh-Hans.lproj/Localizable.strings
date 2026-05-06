@@ -33,6 +33,7 @@
 "mode_include" = "仅限列表中的应用";
 
 "section_apps" = "应用";
+"search_apps_placeholder" = "搜索应用";
 "btn_add" = "+ 添加应用";
 "btn_remove" = "- 移除所选";
 

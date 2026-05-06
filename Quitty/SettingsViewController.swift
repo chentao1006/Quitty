@@ -207,6 +207,7 @@ struct AppListSettingsView: View {
     @ObservedObject var settings: Settings
     @ObservedObject var feedback: FeedbackEngine = .shared
     @State private var selection: String?
+    @State private var searchText: String = ""
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -222,13 +223,18 @@ struct AppListSettingsView: View {
             Text(settings.excludeBehaviour == "excludeApps" ? settings.localizedString("desc_exclude") : settings.localizedString("desc_include"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField(settings.localizedString("search_apps_placeholder"), text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+            }
             
             VStack(spacing: 0) {
                 ScrollViewReader { proxy in
                     List(selection: $selection) {
-                        ForEach(settings.excludedApps.sorted { 
-                            resolveAppInfo(for: $0).name.localizedStandardCompare(resolveAppInfo(for: $1).name) == .orderedAscending
-                        }, id: \.self) { identifier in
+                        ForEach(filteredAppIdentifiers, id: \.self) { identifier in
                             HStack {
                                 AppListRow(identifier: identifier)
                                 Spacer()
@@ -336,6 +342,33 @@ struct AppListSettingsView: View {
             }
         }
         .padding()
+        .onChange(of: searchText) { _ in
+            if let selection, !filteredAppIdentifiers.contains(selection) {
+                self.selection = nil
+            }
+        }
+    }
+
+    private var filteredAppIdentifiers: [String] {
+        let sortedApps = settings.excludedApps.sorted {
+            resolveAppInfo(for: $0).name.localizedStandardCompare(resolveAppInfo(for: $1).name) == .orderedAscending
+        }
+
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return sortedApps }
+
+        return sortedApps.filter { identifier in
+            matchesSearch(query: query, identifier: identifier)
+        }
+    }
+
+    private func matchesSearch(query: String, identifier: String) -> Bool {
+        let info = resolveAppInfo(for: identifier)
+        let query = query.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        let appName = info.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        let bundleID = (info.bundleID ?? identifier).folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+
+        return appName.contains(query) || bundleID.contains(query)
     }
     
     @ViewBuilder
