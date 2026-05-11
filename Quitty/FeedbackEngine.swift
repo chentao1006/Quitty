@@ -63,7 +63,8 @@ class FeedbackEngine: ObservableObject {
     private let maxHistory = 50
     private let historyURL: URL
     private let rulesURL: URL
-    private let iCloudKey = "learned_rules_v1"
+    private let iCloudRulesKey = "learned_rules_v1"
+    private let iCloudFeedbacksKey = "synced_feedbacks_v1"
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -127,7 +128,7 @@ class FeedbackEngine: ObservableObject {
                 if self.history.count > self.maxHistory {
                     self.history = Array(self.history.prefix(self.maxHistory))
                 }
-                self.saveHistory()
+                self.saveHistory() 
             }
         }
     }
@@ -161,7 +162,6 @@ class FeedbackEngine: ObservableObject {
         let record = history[idx]
         learnFromFalseQuit(record: record)
         saveHistory()
-        syncToCloud(record: record, type: .falseQuit)
         setLastFeedbackType(.falseQuit, for: record.bundleID)
         let logMsg = String(format: Settings.shared.localizedString("log_feedback_false_quit"), record.appName)
         Settings.shared.log(logMsg)
@@ -185,9 +185,6 @@ class FeedbackEngine: ObservableObject {
                 self.learnedRules[bundleID] = rule
                 self.saveRulesInternal()
             }
-            // Sync empty record for the counter tracking
-            let tempRecord = TerminationRecord(date: Date(), bundleID: bundleID, appName: appName, appIconPath: bundlePath, windowSnapshots: [], feedbackType: .falseQuit)
-            syncToCloud(record: tempRecord, type: .falseQuit)
             setLastFeedbackType(.falseQuit, for: bundleID)
             
             let logMsg = String(format: Settings.shared.localizedString("log_feedback_false_quit_no_history"), appName)
@@ -251,7 +248,6 @@ class FeedbackEngine: ObservableObject {
             windowSnapshots: snapshots,
             feedbackType: .cantQuit
         )
-        syncToCloud(record: record, type: .cantQuit)
         setLastFeedbackType(.cantQuit, for: bundleID)
 
         let logMsg = String(format: Settings.shared.localizedString("log_feedback_cant_quit"), appName, snapshots.count)
@@ -397,6 +393,15 @@ class FeedbackEngine: ObservableObject {
         if let data = try? JSONEncoder().encode(history) {
             try? data.write(to: historyURL)
         }
+        
+        // Sync ONLY records with feedback to iCloud
+        if Settings.shared.iCloudSyncEnabled {
+            let feedbacks = history.filter { $0.feedbackType != nil }
+            if let data = try? JSONEncoder().encode(feedbacks) {
+                NSUbiquitousKeyValueStore.default.set(data, forKey: iCloudFeedbacksKey)
+                NSUbiquitousKeyValueStore.default.synchronize()
+            }
+        }
     }
 
     func saveRules() {
@@ -407,7 +412,7 @@ class FeedbackEngine: ObservableObject {
         if let data = try? JSONEncoder().encode(learnedRules) {
             try? data.write(to: rulesURL)
             if Settings.shared.iCloudSyncEnabled {
-                NSUbiquitousKeyValueStore.default.set(data, forKey: iCloudKey)
+                NSUbiquitousKeyValueStore.default.set(data, forKey: iCloudRulesKey)
                 NSUbiquitousKeyValueStore.default.synchronize()
             }
         }
@@ -415,13 +420,54 @@ class FeedbackEngine: ObservableObject {
 
     private func loadFromICloud() {
         guard Settings.shared.iCloudSyncEnabled else { return }
-        guard let data = NSUbiquitousKeyValueStore.default.data(forKey: iCloudKey) else { return }
-        do {
-            let incoming = try JSONDecoder().decode([String: LearnedRule].self, from: data)
-            mergeRules(incoming)
-            Settings.shared.log("Merged rules from iCloud.")
-            DispatchQueue.main.async { self.objectWillChange.send() }
-        } catch { print("iCloud Rules Decode Error: \(error)") }
+        
+        // 1. Sync Rules
+        if let rulesData = NSUbiquitousKeyValueStore.default.data(forKey: iCloudRulesKey) {
+            do {
+                let incoming = try JSONDecoder().decode([String: LearnedRule].self, from: rulesData)
+                mergeRules(incoming)
+                Settings.shared.log("Merged rules from iCloud.")
+            } catch { print("iCloud Rules Decode Error: \(error)") }
+        }
+        
+        // 2. Sync Feedbacks
+        if let feedbackData = NSUbiquitousKeyValueStore.default.data(forKey: iCloudFeedbacksKey) {
+            do {
+                let incoming = try JSONDecoder().decode([TerminationRecord].self, from: feedbackData)
+                mergeFeedbacks(incoming)
+                Settings.shared.log("Merged feedbacks from iCloud.")
+            } catch { print("iCloud Feedbacks Decode Error: \(error)") }
+        }
+        
+        DispatchQueue.main.async { self.objectWillChange.send() }
+    }
+
+    private func mergeFeedbacks(_ incoming: [TerminationRecord]) {
+        var changed = false
+        for incomingRecord in incoming {
+            if let idx = history.firstIndex(where: { $0.id == incomingRecord.id }) {
+                // If we have the record but it's not marked as feedback locally, update it
+                if history[idx].feedbackType == nil && incomingRecord.feedbackType != nil {
+                    history[idx].feedbackType = incomingRecord.feedbackType
+                    changed = true
+                }
+            } else {
+                // We don't have this record (it happened on another device), add it
+                history.append(incomingRecord)
+                changed = true
+            }
+        }
+        
+        if changed {
+            history.sort { $0.date > $1.date }
+            if history.count > maxHistory {
+                history = Array(history.prefix(maxHistory))
+            }
+            // Save locally
+            if let data = try? JSONEncoder().encode(history) {
+                try? data.write(to: historyURL)
+            }
+        }
     }
 
     private func mergeRules(_ incoming: [String: LearnedRule]) {
@@ -444,54 +490,4 @@ class FeedbackEngine: ObservableObject {
         }
     }
 
-    // MARK: - Cloud Reporting
-
-    private func syncToCloud(record: TerminationRecord, type: FeedbackType) {
-        let apiURL = URL(string: "https://api.ct106.cc/quitty")!
-        
-        // 1. Report Main Record (feedback_records)
-        let mainParams: [String: String] = [
-            "table": "feedback_records",
-            "id": record.id.uuidString,
-            "bundle_id": record.bundleID,
-            "app_name": record.appName,
-            "app_icon_path": record.appIconPath ?? "",
-            "feedback_type": type.rawValue,
-            "created_at": ISO8601DateFormatter().string(from: record.date)
-        ]
-        sendPostRequest(url: apiURL, params: mainParams)
-        
-        // 2. Report Snapshots (window_snapshots)
-        for snap in record.windowSnapshots {
-            let snapParams: [String: String] = [
-                "table": "window_snapshots",
-                "record_id": record.id.uuidString,
-                "width": String(format: "%.2f", snap.width),
-                "height": String(format: "%.2f", snap.height),
-                "layer": String(snap.layer),
-                "is_on_screen": snap.isOnScreen ? "1" : "0",
-                "alpha": String(format: "%.3f", snap.alpha),
-                "window_name": snap.name
-            ]
-            sendPostRequest(url: apiURL, params: snapParams)
-        }
-    }
-
-    private func sendPostRequest(url: URL, params: [String: String]) {
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let bodyString = params.map { 
-            "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" 
-        }.joined(separator: "&")
-        
-        request.httpBody = bodyString.data(using: .utf8)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                Settings.shared.log("Cloud sync error: \(error.localizedDescription)")
-            }
-        }.resume()
-    }
 }
