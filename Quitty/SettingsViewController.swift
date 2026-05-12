@@ -124,22 +124,22 @@ struct GeneralSettingsView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Button(settings.localizedString(settings.isAccessibilityAuthorized ? "btn_check" : "btn_grant")) {
-                        if let delegate = NSApplication.shared.delegate as? AppDelegate {
-                            delegate.checkAccessibilityPermissions(silent: false)
-                            settings.objectWillChange.send()
+                if !settings.isAccessibilityAuthorized {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(settings.localizedString("btn_grant")) {
+                            if let delegate = NSApplication.shared.delegate as? AppDelegate {
+                                delegate.checkAccessibilityPermissions(silent: false)
+                                settings.objectWillChange.send()
+                            }
                         }
-                    }
 
-                    if !settings.isAccessibilityAuthorized {
                         Text(settings.localizedString("permission_desc"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .padding(.vertical, 4)
                 }
-                .padding(.vertical, 4)
             } header: {
                 Text(settings.localizedString("section_permissions"))
             }

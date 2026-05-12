@@ -2,6 +2,9 @@
 "menu_settings" = "Settings...";
 "menu_check_updates" = "Check for Updates...";
 "menu_quit" = "Quit Quitty";
+"menu_reopen" = "Reopen";
+"menu_feedback_reopen" = "Report False Quit (and Reopen)";
+"menu_recently_quit" = "Recently Quit";
 "subtitle" = "Auto-quit certain apps when their last window closes";
 
 "tab_general" = "General";

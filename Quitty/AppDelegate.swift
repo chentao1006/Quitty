@@ -15,7 +15,7 @@ import ServiceManagement
 import Sparkle
 
 @main
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     static func main() {
         // Enforce single instance
@@ -200,11 +200,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
+        menu.delegate = self
+        statusItem?.menu = menu
+
+        // Apply visibility from settings
+        statusItem?.isVisible = Settings.shared.menubarIconEnabled
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
         
-        let titleItem = NSMenuItem(title: Settings.shared.localizedString("app_name"), action: nil, keyEquivalent: "")
-        titleItem.isEnabled = false
-        menu.addItem(titleItem)
-        menu.addItem(NSMenuItem.separator())
+        // Deduplicate history by bundleID, keeping only the most recent entry
+        var seenBundleIDs = Set<String>()
+        var history: [TerminationRecord] = []
+        for record in FeedbackEngine.shared.history {
+            if !seenBundleIDs.contains(record.bundleID) {
+                history.append(record)
+                seenBundleIDs.insert(record.bundleID)
+            }
+            if history.count >= 10 { break }
+        }
+        
+        if !history.isEmpty {
+            let headerItem = NSMenuItem(title: Settings.shared.localizedString("menu_recently_quit"), action: nil, keyEquivalent: "")
+            headerItem.isEnabled = false
+            menu.addItem(headerItem)
+
+            for record in history {
+                let appItem = NSMenuItem(title: record.appName, action: nil, keyEquivalent: "")
+                let icon = FeedbackEngine.shared.appIcon(for: record)
+                icon.size = NSSize(width: 16, height: 16)
+                appItem.image = icon
+                
+                let submenu = NSMenu()
+                
+                let reopenItem = NSMenuItem(title: Settings.shared.localizedString("menu_reopen"), action: #selector(reopenApp(_:)), keyEquivalent: "")
+                reopenItem.representedObject = record.bundleID
+                submenu.addItem(reopenItem)
+
+                let feedbackItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_reopen"), action: #selector(feedbackAndReopen(_:)), keyEquivalent: "")
+                feedbackItem.representedObject = record.id
+                submenu.addItem(feedbackItem)
+                
+                appItem.submenu = submenu
+                menu.addItem(appItem)
+            }
+            menu.addItem(NSMenuItem.separator())
+        }
         
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_settings"), action: #selector(showSettings), keyEquivalent: ","))
         
@@ -215,10 +257,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem?.menu = menu
+    }
 
-        // Apply visibility from settings
-        statusItem?.isVisible = Settings.shared.menubarIconEnabled
+    @objc private func feedbackAndReopen(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID,
+              let record = FeedbackEngine.shared.history.first(where: { $0.id == id }) else { return }
+        
+        FeedbackEngine.shared.reportFalseQuit(recordID: id)
+        
+        // Reopen
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: record.bundleID) {
+            NSWorkspace.shared.open(url)
+        } else if let path = record.appIconPath {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        }
+    }
+
+    @objc private func reopenApp(_ sender: NSMenuItem) {
+        guard let bundleID = sender.representedObject as? String else { return }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     // MARK: - Settings Window

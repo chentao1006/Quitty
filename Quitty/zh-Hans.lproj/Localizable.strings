@@ -2,6 +2,9 @@
 "menu_settings" = "设置...";
 "menu_check_updates" = "检查更新...";
 "menu_quit" = "退出";
+"menu_reopen" = "重新打开";
+"menu_feedback_reopen" = "反馈误退（并重新打开）";
+"menu_recently_quit" = "最近退出";
 "subtitle" = "让指定应用在最后一个窗口关闭时自动退出";
 
 "tab_general" = "通用";
