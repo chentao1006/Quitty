@@ -33,6 +33,7 @@ dist/
 Sparkle/
 sparkle_private.key
 sparkle.tar.xz
+*.log
 
 # Release script (local use only)
 # release.sh
