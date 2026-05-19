@@ -9,7 +9,7 @@
 
 "tab_general" = "General";
 "tab_apps" = "Apps";
-"tab_data" = "Data";
+"tab_data" = "Monitor";
 "tab_about" = "About";
 
 "section_general" = "GENERAL";
@@ -31,6 +31,7 @@
 
 "section_behavior" = "BEHAVIOR";
 "quit_delay" = "Quit delay";
+"seconds_format" = "%d sec";
 "mode" = "Mode:";
 "mode_exclude" = "All Apps (Except Listed)";
 "mode_include" = "Only Listed Apps";

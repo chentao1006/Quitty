@@ -374,6 +374,9 @@ class WindowWatcher {
                 if let cooldownUntil = periodicCheckCooldowns[pid], cooldownUntil > now {
                     continue
                 }
+                if pendingQuits[pid] != nil {
+                    continue
+                }
                 // If it's been armed at some point but currently reports 0 windows, trigger a check
                 if armedPids.contains(pid) {
                     mutatePerformance(for: app) { $0.rescueScanCount += 1 }
@@ -723,13 +726,17 @@ class WindowWatcher {
 
             // Final check on Main Thread to schedule termination
             DispatchQueue.main.async {
+                if self.pendingQuits[pid] != nil {
+                    return
+                }
+
                 self.pendingQuits[pid]?.cancel()
                 
                 let isSpecial = self.isSpecialCareApp(app)
                 let isAppCurrentlyActive = app.isActive
                 // Slightly more responsive delays
                 let extraDelay = (isAppCurrentlyActive ? 2.5 : 0.5) + (isSpecial ? 2.0 : 1.0)
-                let totalDelay = 1.5 + extraDelay
+                let totalDelay = 1.5 + extraDelay + TimeInterval(Settings.shared.quitDelaySeconds)
 
                 // Capture the generation at the time we schedule; if a window appears
                 // before the workItem fires it will bump quitGenerations[pid] and the

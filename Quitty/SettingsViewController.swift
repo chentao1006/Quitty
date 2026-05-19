@@ -28,7 +28,7 @@ struct SettingsView: View {
                     Label(settings.localizedString("tab_general"), systemImage: "gearshape")
                 }
                 .tag(0)
-            
+
             AppListSettingsView(settings: settings)
                 .tabItem {
                     Label(settings.localizedString("tab_apps"), systemImage: "list.bullet")
@@ -109,6 +109,25 @@ struct GeneralSettingsView: View {
                 }
             } header: {
                 Text(settings.localizedString("section_general"))
+            }
+
+            Section {
+                HStack {
+                    Text(settings.localizedString("quit_delay"))
+                    Slider(
+                        value: Binding(
+                            get: { Double(settings.quitDelaySeconds) },
+                            set: { settings.quitDelaySeconds = Int($0.rounded()) }
+                        ),
+                        in: 0...60,
+                        step: 1
+                    )
+                    Text(String(format: settings.localizedString("seconds_format"), settings.quitDelaySeconds))
+                        .foregroundColor(.secondary)
+                        .frame(width: 52, alignment: .trailing)
+                }
+            } header: {
+                Text(settings.localizedString("section_behavior"))
             }
 
             Section {

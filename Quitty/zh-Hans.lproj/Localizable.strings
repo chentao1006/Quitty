@@ -9,7 +9,7 @@
 
 "tab_general" = "通用";
 "tab_apps" = "应用";
-"tab_data" = "数据";
+"tab_data" = "监控";
 "tab_about" = "关于";
 
 "section_general" = "通用";
@@ -31,6 +31,7 @@
 
 "section_behavior" = "行为";
 "quit_delay" = "退出延迟";
+"seconds_format" = "%d 秒";
 "mode" = "模式:";
 "mode_exclude" = "所有应用 (排除列表中的)";
 "mode_include" = "仅限列表中的应用";

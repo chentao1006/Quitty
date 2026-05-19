@@ -117,6 +117,7 @@ class Settings: ObservableObject {
         case launchAtLogin      = "launchAtLogin"
         case appLanguage        = "appLanguage"
         case iCloudSyncEnabled  = "iCloudSyncEnabled"
+        case quitDelaySeconds   = "quitDelaySeconds"
     }
 
     init() {
@@ -174,6 +175,7 @@ class Settings: ObservableObject {
         store.set(excludeBehaviour, forKey: Key.excludeBehaviour.rawValue)
         store.set(excludedApps, forKey: Key.excludedApps.rawValue)
         store.set(appLanguage, forKey: Key.appLanguage.rawValue)
+        store.set(quitDelaySeconds, forKey: Key.quitDelaySeconds.rawValue)
         
         store.synchronize()
         log("Settings saved to iCloud")
@@ -215,6 +217,13 @@ class Settings: ObservableObject {
                 changed = true
             }
         }
+        if let v = store.object(forKey: Key.quitDelaySeconds.rawValue) as? Int {
+            let clamped = Self.clampQuitDelay(v)
+            if clamped != quitDelaySeconds {
+                defaults.set(clamped, forKey: Key.quitDelaySeconds.rawValue)
+                changed = true
+            }
+        }
         
         if changed {
             objectWillChange.send()
@@ -230,7 +239,8 @@ class Settings: ObservableObject {
             Key.menubarIconEnabled.rawValue: menubarIconEnabled,
             Key.excludeBehaviour.rawValue: excludeBehaviour,
             Key.excludedApps.rawValue: excludedApps,
-            Key.appLanguage.rawValue: appLanguage
+            Key.appLanguage.rawValue: appLanguage,
+            Key.quitDelaySeconds.rawValue: quitDelaySeconds
         ]
         return try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
     }
@@ -254,6 +264,9 @@ class Settings: ObservableObject {
                 }
                 if let v = json[Key.appLanguage.rawValue] as? String { 
                     defaults.set(v, forKey: Key.appLanguage.rawValue) 
+                }
+                if let v = json[Key.quitDelaySeconds.rawValue] as? Int {
+                    defaults.set(Self.clampQuitDelay(v), forKey: Key.quitDelaySeconds.rawValue)
                 }
                 
                 saveToICloud()
@@ -325,6 +338,15 @@ class Settings: ObservableObject {
         }
     }
 
+    var quitDelaySeconds: Int {
+        get { Self.clampQuitDelay(defaults.object(forKey: Key.quitDelaySeconds.rawValue) as? Int ?? 0) }
+        set {
+            objectWillChange.send()
+            defaults.set(Self.clampQuitDelay(newValue), forKey: Key.quitDelaySeconds.rawValue)
+            saveToICloud()
+        }
+    }
+
 
     var launchAtLogin: Bool {
         get { defaults.object(forKey: Key.launchAtLogin.rawValue) as? Bool ?? false }
@@ -337,6 +359,10 @@ class Settings: ObservableObject {
 
     var isAccessibilityAuthorized: Bool {
         AXIsProcessTrusted()
+    }
+
+    private static func clampQuitDelay(_ value: Int) -> Int {
+        min(60, max(0, value))
     }
 
     // MARK: - Launch At Login
