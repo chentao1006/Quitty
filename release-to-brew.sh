@@ -166,7 +166,7 @@ cask "$CASK_TOKEN" do
 
   url "$DOWNLOAD_URL"
   name "$APP_NAME"
-  desc "Quit macOS apps automatically when their last window is closed"
+  desc "Quit apps automatically when their last window is closed"
   homepage "https://github.com/$SOURCE_REPO"
 
   depends_on macos: :big_sur
