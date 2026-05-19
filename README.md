@@ -6,6 +6,10 @@
 
 [![Download Quitty](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=apple)](https://github.com/chentao1006/quitty/releases/latest)
 
+```bash
+brew install --cask chentao1006/tap/quitty
+```
+
 ## 🚀 Key Features
 
 -   **Automatic Termination**: Quits apps instantly (or with a delay) when you close their last window.
@@ -25,7 +29,21 @@
 Download the latest version as a DMG file from the [Releases Page](https://github.com/chentao1006/Quitty/releases). 
 Simply open `Quitty.dmg` and drag **Quitty** to your `Applications` folder.
 
-### 2. Build from Source
+### 2. Homebrew Cask
+You can also install Quitty with Homebrew:
+
+```bash
+brew install --cask chentao1006/tap/quitty
+```
+
+Or tap the repository first:
+
+```bash
+brew tap chentao1006/tap
+brew install --cask quitty
+```
+
+### 3. Build from Source
 You can also build and install Quitty directly from source using the provided script.
 
 1.  Clone this repository to your local machine.
@@ -36,6 +54,24 @@ You can also build and install Quitty directly from source using the provided sc
     ./build_and_install.sh
     ```
 4.  The script will compile the project in Release mode and install `Quitty.app` to your `/Applications` folder.
+
+## 📦 Release
+
+`release.sh` builds the DMG, creates the GitHub release, then updates the `quitty` cask in the shared public tap `chentao1006/homebrew-tap`.
+
+The tap is shared by multiple projects, so `release-to-brew.sh` writes the Quitty cask and keeps the tap README generic.
+
+```bash
+./release.sh 1.2.3
+```
+
+Useful release options:
+
+```bash
+SKIP_HOMEBREW_RELEASE=1 ./release.sh 1.2.3
+SKIP_BREW_PUSH=1 ./release-to-brew.sh dist/Quitty.dmg 1.2.3
+RUN_BREW_AUDIT=1 ./release-to-brew.sh dist/Quitty.dmg 1.2.3
+```
 
 ## 📖 Usage & Setup
 

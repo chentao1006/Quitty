@@ -6,6 +6,10 @@
 
 [![下载 静隐](https://img.shields.io/badge/静隐-最新版本-blue?style=for-the-badge&logo=apple)](https://github.com/chentao1006/quitty/releases/latest)
 
+```bash
+brew install --cask chentao1006/tap/quitty
+```
+
 ## 🚀 核心功能
 
 -   **自动终止**：当您关闭最后一个窗口时，立即（或延迟）退出应用程序。
@@ -25,7 +29,21 @@
 从 [发行页面 (Releases)](https://github.com/chentao1006/Quitty/releases) 下载最新的 DMG 文件。
 只需打开 `Quitty.dmg` 并将 **静隐 (Quitty)** 拖入您的 `Applications` 文件夹。
 
-### 2. 从源码构建
+### 2. Homebrew Cask
+也可以通过 Homebrew 安装静隐：
+
+```bash
+brew install --cask chentao1006/tap/quitty
+```
+
+或先添加 tap：
+
+```bash
+brew tap chentao1006/tap
+brew install --cask quitty
+```
+
+### 3. 从源码构建
 或者，您可以使用提供的脚本直接从源代码构建并安装。
 
 1.  将此仓库克隆到本地机器。
@@ -36,6 +54,24 @@
     ./build_and_install.sh
     ```
 4.  脚本将以 Release 模式编译项目并将 `Quitty.app` 安装到您的 `/Applications` 文件夹中。
+
+## 📦 发布
+
+`release.sh` 会构建 DMG、创建 GitHub Release，并更新共享公开 tap `chentao1006/homebrew-tap` 中的 `quitty` cask。
+
+这个 tap 会被多个项目共用，所以 `release-to-brew.sh` 会写入 Quitty cask，并让 tap README 保持通用说明。
+
+```bash
+./release.sh 1.2.3
+```
+
+常用发布选项：
+
+```bash
+SKIP_HOMEBREW_RELEASE=1 ./release.sh 1.2.3
+SKIP_BREW_PUSH=1 ./release-to-brew.sh dist/Quitty.dmg 1.2.3
+RUN_BREW_AUDIT=1 ./release-to-brew.sh dist/Quitty.dmg 1.2.3
+```
 
 ## 📖 使用与设置
 

@@ -124,6 +124,18 @@ if command -v gh >/dev/null 2>&1; then
     
     if [ $? -eq 0 ]; then
         echo "🎉 Release completed successfully!"
+        if [ "${SKIP_HOMEBREW_RELEASE:-0}" = "1" ]; then
+            echo "⏭️  Skipping Homebrew release because SKIP_HOMEBREW_RELEASE=1."
+        else
+            echo "🍺 Updating Homebrew tap..."
+            chmod +x release-to-brew.sh
+            if ./release-to-brew.sh "${RESULT_DIR}/Quitty.dmg" "$NEW_VERSION"; then
+                echo "🍺 Homebrew tap updated successfully!"
+            else
+                echo "❌ Error: Homebrew tap update failed. GitHub Release was created, but the cask may need to be updated manually."
+                exit 1
+            fi
+        fi
     else
         echo "❌ Error: GitHub Release failed to create. Please check the error above."
     fi
