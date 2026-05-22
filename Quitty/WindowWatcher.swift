@@ -863,6 +863,9 @@ class WindowWatcher {
     }
 
     /// High-reliability window check using the Window Server's direct list.
+    /// `.optionAll` is intentional here: AX can report zero while an app has
+    /// windows on another Space, so the final guard must look past the active
+    /// desktop before allowing termination.
     private func isActualWindowPresent(pid: pid_t) -> Bool {
         return autoreleasepool {
             let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionAll)
@@ -908,6 +911,7 @@ class WindowWatcher {
             let minDim: CGFloat = sensitivityMult < 0.6 ? 20 : 40
             if width <= minDim || height <= minDim { continue }
 
+            let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
             let name = window[kCGWindowName as String] as? String ?? ""
             let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -916,7 +920,12 @@ class WindowWatcher {
                 continue
             }
             
-            if !trimmedName.isEmpty { return true }
+            if !trimmedName.isEmpty {
+                if !isOnScreen {
+                    Settings.shared.log("   -> [isActualWindowPresent] Found named window for \(pid) on another Space: \(trimmedName)")
+                }
+                return true
+            }
             
             // UNNAMED WINDOW LOGIC (Common in Electron, Java, Flutter, Terminals, etc.)
             
@@ -946,8 +955,6 @@ class WindowWatcher {
                 width: width, height: height
             )
 
-            let isOnScreen = window[kCGWindowIsOnscreen as String] as? Bool ?? false
-
             // If it matches a universal ghost size:
             if !learnedGhost && isGhostSize {
                 // We allow "False Quit" feedback to override universal ghosts.
@@ -970,16 +977,18 @@ class WindowWatcher {
             
             if !isOnScreen {
                 // Window on another space
-                // Ultra-conservative threshold for unnamed windows on other spaces.
-                var threshold: CGFloat = isSpecial ? 150 : 250
+                // Off-Space windows often lose their AX title. Count any
+                // reasonably sized non-ghost window to prevent workspace
+                // switches from looking like "no windows".
+                var threshold: CGFloat = isSpecial ? 90 : 140
                 if isGhostProne {
-                    threshold = 400
+                    threshold = 220
                 }
                 // Apply learned caution multiplier (scales threshold down = easier to be real)
                 threshold = threshold / cautionMult
                 
                 if width > threshold && height > threshold {
-                    Settings.shared.log("   -> [isActualWindowPresent] Found window for \(pid) on another space (\(Int(width))x\(Int(height)))")
+                    Settings.shared.log("   -> [isActualWindowPresent] Found unnamed window for \(pid) on another Space (\(Int(width))x\(Int(height)))")
                     return true
                 }
             } else {
