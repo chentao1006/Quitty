@@ -17,6 +17,97 @@ class SettingsViewController: NSHostingController<SettingsView> {
     }
 }
 
+private struct LogTextView: NSViewRepresentable {
+    let entries: [LogEntry]
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = false
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = .textBackgroundColor
+
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.allowsUndo = false
+        textView.isRichText = true
+        textView.importsGraphics = false
+        textView.drawsBackground = true
+        textView.backgroundColor = .textBackgroundColor
+        textView.textContainerInset = NSSize(width: 8, height: 6)
+        textView.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        textView.textColor = .secondaryLabelColor
+        textView.isHorizontallyResizable = true
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.heightTracksTextView = false
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        let newPlainText = entries.map(\.line).joined(separator: "\n")
+        guard context.coordinator.plainText != newPlainText else { return }
+
+        let textView = context.coordinator.textView
+        textView?.textStorage?.setAttributedString(Self.attributedLogs(for: entries))
+        context.coordinator.plainText = newPlainText
+
+        DispatchQueue.main.async {
+            textView?.scrollToEndOfDocument(nil)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        weak var textView: NSTextView?
+        var plainText = ""
+    }
+
+    private static func attributedLogs(for entries: [LogEntry]) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        let font = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+
+        for (index, entry) in entries.enumerated() {
+            if index > 0 {
+                result.append(NSAttributedString(string: "\n"))
+            }
+
+            result.append(NSAttributedString(
+                string: entry.line,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: color(for: entry.tone)
+                ]
+            ))
+        }
+
+        return result
+    }
+
+    private static func color(for tone: LogTone) -> NSColor {
+        switch tone {
+        case .success:
+            return .systemGreen
+        case .warning:
+            return .systemOrange
+        case .failure:
+            return .systemRed
+        case .neutral:
+            return .secondaryLabelColor
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @State private var selectedTab: Int = 0
@@ -57,27 +148,6 @@ struct SettingsView: View {
         .id(settings.appLanguage)
         .frame(minWidth: 650, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .animation(.easeInOut(duration: 0.2), value: selectedTab)
-        .onAppear {
-            syncWatcherDiagnosticsVisibility()
-        }
-        .onChange(of: selectedTab) { _ in
-            syncWatcherDiagnosticsVisibility()
-        }
-        .onDisappear {
-            settings.isWatcherDiagnosticsVisible = false
-            settings.clearWatcherDiagnostics()
-        }
-    }
-
-    private func syncWatcherDiagnosticsVisibility() {
-        let isVisible = selectedTab == 3
-        settings.isWatcherDiagnosticsVisible = isVisible
-
-        if isVisible {
-            (NSApplication.shared.delegate as? AppDelegate)?.windowWatcher.refreshDiagnosticsDisplay()
-        } else {
-            settings.clearWatcherDiagnostics()
-        }
     }
 }
 
@@ -559,73 +629,11 @@ struct DataSettingsView: View {
     @ObservedObject var settings: Settings
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(settings.localizedString("section_live_monitor"))
-                .font(.headline)
-
-            HStack(alignment: .top, spacing: 14) {
-                diagnosticsPane
-                logsPane
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        VStack(alignment: .leading, spacing: 0) {
+            logsPane
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private static let diagnosticsDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm:ss"
-        return formatter
-    }()
-
-    private var diagnosticsPane: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(settings.localizedString("diag_performance_title"))
-                    .font(.headline)
-                Spacer()
-                if let updatedAt = settings.watcherDiagnosticsUpdatedAt {
-                    Text(Self.diagnosticsDateFormatter.string(from: updatedAt))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Text(settings.localizedString("diag_performance_desc"))
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Group {
-                if settings.watcherDiagnostics.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(settings.localizedString("diag_empty_title"))
-                            .font(.subheadline).bold()
-                        Text(settings.localizedString("diag_empty_desc"))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(10)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                    )
-                } else {
-                    ScrollView {
-                        VStack(spacing: 8) {
-                            ForEach(settings.watcherDiagnostics) { row in
-                                WatcherDiagnosticCard(settings: settings, row: row)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -638,33 +646,7 @@ struct DataSettingsView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(settings.logs) { entry in
-                            if #available(macOS 12.0, *) {
-                                Text(entry.line)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(logColor(for: entry.tone))
-                                    .textSelection(.enabled)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                Text(entry.line)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(logColor(for: entry.tone))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-
-                        Color.clear
-                            .frame(height: 1)
-                            .id("logBottom")
-                    }
-                }
+            LogTextView(entries: settings.logs)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(NSColor.textBackgroundColor))
                 .cornerRadius(6)
@@ -672,13 +654,6 @@ struct DataSettingsView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                 )
-                .onChange(of: settings.logs.count) { _ in
-                    proxy.scrollTo("logBottom", anchor: .bottom)
-                }
-                .onAppear {
-                    proxy.scrollTo("logBottom", anchor: .bottom)
-                }
-            }
 
             HStack {
                 Spacer()
@@ -717,19 +692,6 @@ struct DataSettingsView: View {
         if savePanel.runModal() == .OK, let url = savePanel.url {
             let logContent = settings.exportedLogsText
             try? logContent.write(to: url, atomically: true, encoding: .utf8)
-        }
-    }
-
-    private func logColor(for tone: LogTone) -> Color {
-        switch tone {
-        case .success:
-            return .green
-        case .warning:
-            return .orange
-        case .failure:
-            return .red
-        case .neutral:
-            return .secondary
         }
     }
 }
@@ -795,149 +757,6 @@ private struct SyncBackupSectionView: View {
         if openPanel.runModal() == .OK, let url = openPanel.url {
             if let data = try? Data(contentsOf: url) {
                 _ = settings.importFromJSON(data: data)
-            }
-        }
-    }
-}
-
-private struct WatcherDiagnosticCard: View {
-    let settings: Settings
-    let row: WatcherDiagnosticRow
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                HStack(spacing: 10) {
-                    DiagnosticAppIcon(row: row)
-
-                    Text(row.appName)
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Text(settings.localizedString(loadLabelKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(loadColor)
-            }
-
-            SparklineChart(values: row.loadHistory, tint: loadColor)
-                .frame(height: 34)
-
-            Text(detailLine)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(NSColor.textBackgroundColor))
-        .cornerRadius(6)
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-        )
-    }
-
-    private var totalLoadRatio: Double {
-        let combined = row.totalTrackedMs + row.cgChecks * 45 + row.rescueScans * 8 + row.duplicateSkips * 3
-        return normalized(value: combined, softCap: 2200)
-    }
-
-    private var loadLabelKey: String {
-        switch totalLoadRatio {
-        case 0..<0.25:
-            return "diag_load_good"
-        case 0.25..<0.55:
-            return "diag_load_ok"
-        case 0.55..<0.8:
-            return "diag_load_busy"
-        default:
-            return "diag_load_hot"
-        }
-    }
-
-    private var loadColor: Color {
-        switch totalLoadRatio {
-        case 0..<0.25:
-            return .green
-        case 0.25..<0.55:
-            return .yellow
-        case 0.55..<0.8:
-            return .orange
-        default:
-            return .red
-        }
-    }
-
-    private var detailLine: String {
-        settings.localizedString("diag_detail_format")
-            .replacingOccurrences(of: "%1$@", with: "\(row.axChecks + row.cgChecks)")
-            .replacingOccurrences(of: "%2$@", with: "\(row.cgChecks)")
-            .replacingOccurrences(of: "%3$@", with: "\(row.rescueScans)")
-    }
-
-    private func normalized(value: Int, softCap: Int) -> Double {
-        guard softCap > 0 else { return 0 }
-        return min(max(Double(value) / Double(softCap), 0), 1)
-    }
-}
-
-private struct DiagnosticAppIcon: View {
-    let row: WatcherDiagnosticRow
-
-    var body: some View {
-        Image(nsImage: icon)
-            .resizable()
-            .interpolation(.high)
-            .frame(width: 28, height: 28)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
-    private var icon: NSImage {
-        let workspace = NSWorkspace.shared
-
-        if let bundlePath = row.bundlePath, !bundlePath.isEmpty {
-            return workspace.icon(forFile: bundlePath)
-        }
-
-        if let bundleIdentifier = row.bundleIdentifier,
-           let url = workspace.urlForApplication(withBundleIdentifier: bundleIdentifier) {
-            return workspace.icon(forFile: url.path)
-        }
-
-        return workspace.icon(forFileType: "app")
-    }
-}
-
-private struct SparklineChart: View {
-    let values: [Double]
-    let tint: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottomLeading) {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.secondary.opacity(0.08))
-
-                if values.count >= 2 {
-                    Path { path in
-                        for (index, value) in values.enumerated() {
-                            let x = geometry.size.width * CGFloat(index) / CGFloat(max(values.count - 1, 1))
-                            let y = geometry.size.height * (1 - CGFloat(min(max(value, 0), 1)))
-                            if index == 0 {
-                                path.move(to: CGPoint(x: x, y: y))
-                            } else {
-                                path.addLine(to: CGPoint(x: x, y: y))
-                            }
-                        }
-                    }
-                    .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                } else {
-                    Capsule()
-                        .fill(tint.opacity(0.4))
-                        .frame(width: geometry.size.width, height: 4)
-                        .offset(y: -8)
-                }
             }
         }
     }

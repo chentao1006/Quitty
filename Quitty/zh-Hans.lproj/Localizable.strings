@@ -9,7 +9,7 @@
 
 "tab_general" = "通用";
 "tab_apps" = "应用";
-"tab_data" = "监控";
+"tab_data" = "日志";
 "tab_about" = "关于";
 
 "section_general" = "通用";

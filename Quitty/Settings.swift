@@ -339,7 +339,7 @@ class Settings: ObservableObject {
     }
 
     var quitDelaySeconds: Int {
-        get { Self.clampQuitDelay(defaults.object(forKey: Key.quitDelaySeconds.rawValue) as? Int ?? 0) }
+        get { Self.clampQuitDelay(defaults.object(forKey: Key.quitDelaySeconds.rawValue) as? Int ?? 10) }
         set {
             objectWillChange.send()
             defaults.set(Self.clampQuitDelay(newValue), forKey: Key.quitDelaySeconds.rawValue)
