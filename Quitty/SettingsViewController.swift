@@ -279,6 +279,9 @@ struct AboutSettingsView: View {
                         .font(.body)
                         .foregroundColor(.accentColor)
                 }
+                
+                Toggle(settings.localizedString("enable_analytics"), isOn: $settings.isAnalyticsEnabled)
+                    .font(.body)
             }
             
             Text("© 2026 chentao1006")

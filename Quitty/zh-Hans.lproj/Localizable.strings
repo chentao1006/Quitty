@@ -20,6 +20,7 @@
 "section_sync" = "同步";
 "icloud_sync" = "iCloud 同步";
 "icloud_sync_desc" = "使用 iCloud 键值存储在您的设备之间同步设置。";
+"enable_analytics" = "分享匿名使用数据（帮助改进静隐）";
 
 "section_backup" = "备份与还原";
 "btn_export" = "导出设置...";
@@ -123,3 +124,8 @@
 "diag_fallback_rare" = "偶尔";
 "diag_fallback_often" = "经常";
 "diag_detail_format" = "检查 %1$@ · 备用 %2$@ · 复查 %3$@";
+
+"analytics_prompt_title" = "帮助改进静隐";
+"analytics_prompt_desc" = "您愿意分享匿名使用数据以帮助我们改进静隐吗？我们绝不会收集任何个人隐私信息。您可以在“设置”中随时更改此选项。";
+"btn_agree" = "同意";
+"btn_decline" = "拒绝";

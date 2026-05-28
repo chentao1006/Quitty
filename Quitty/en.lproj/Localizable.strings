@@ -20,6 +20,7 @@
 "section_sync" = "SYNC";
 "icloud_sync" = "iCloud Sync";
 "icloud_sync_desc" = "Sync settings across your devices using iCloud Key-Value store.";
+"enable_analytics" = "Share anonymous usage data to help improve Quitty";
 
 "section_backup" = "BACKUP & RESTORE";
 "btn_export" = "Export Settings...";
@@ -123,3 +124,8 @@
 "diag_fallback_rare" = "Rare";
 "diag_fallback_often" = "Often";
 "diag_detail_format" = "Checks %1$@ · Backup %2$@ · Rechecks %3$@";
+
+"analytics_prompt_title" = "Help Improve Quitty";
+"analytics_prompt_desc" = "Would you like to share anonymous usage data to help improve Quitty? No personally identifiable information is collected. You can change this at any time in Settings.";
+"btn_agree" = "Agree";
+"btn_decline" = "Decline";

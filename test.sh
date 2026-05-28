@@ -6,7 +6,9 @@ set -e
 # Project root directory
 PROJECT_ROOT="."
 BUILD_DIR="${PROJECT_ROOT}/build"
+DERIVED_DATA_DIR="${BUILD_DIR}/DerivedData"
 APP_NAME="Quitty.app"
+BUILT_APP_PATH="${DERIVED_DATA_DIR}/Build/Products/Release/${APP_NAME}"
 BUNDLE_ID="com.ct106.quitty"
 INSTALL_PATH="/Applications/${APP_NAME}"
 
@@ -14,8 +16,8 @@ echo "🚀 Starting build for ${APP_NAME}..."
 
 # 1. Clean old build files
 if [ -d "${BUILD_DIR}" ]; then
-    echo "🧹 Cleaning old build directory..."
-    rm -rf "${BUILD_DIR}"
+    echo "🧹 Cleaning old build directory... (Skipped for debugging)"
+    # rm -rf "${BUILD_DIR}"
 fi
 
 # 2. Run compilation
@@ -23,8 +25,8 @@ echo "🏗️ Compiling Release version..."
 xcodebuild -project "${PROJECT_ROOT}/Quitty.xcodeproj" \
            -scheme "Quitty" \
            -configuration "Release" \
-           -derivedDataPath "${BUILD_DIR}" \
-           CONFIGURATION_BUILD_DIR="${BUILD_DIR}" \
+           -destination "platform=macOS,arch=arm64" \
+           -derivedDataPath "${DERIVED_DATA_DIR}" \
            build > /dev/null
 
 if [ $? -eq 0 ]; then
@@ -35,7 +37,7 @@ else
 fi
 
 # 3. Check generated App
-if [ ! -d "${BUILD_DIR}/${APP_NAME}" ]; then
+if [ ! -d "${BUILT_APP_PATH}" ]; then
     echo "❌ ${APP_NAME} not found in build directory"
     exit 1
 fi
@@ -66,7 +68,7 @@ fi
 echo "🔐 Resetting Accessibility permissions..."
 tccutil reset Accessibility "${BUNDLE_ID}" || true
 
-cp -R "${BUILD_DIR}/${APP_NAME}" "${INSTALL_PATH}"
+cp -R "${BUILT_APP_PATH}" "${INSTALL_PATH}"
 
 # Clear quarantine and fix permissions for local testing
 xattr -cr "${INSTALL_PATH}"

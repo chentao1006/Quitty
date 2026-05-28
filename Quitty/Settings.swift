@@ -7,6 +7,7 @@
 import SwiftUI
 import ServiceManagement
 import Cocoa
+import Aptabase
 
 struct WatcherDiagnosticRow: Identifiable {
     let id: String
@@ -118,6 +119,7 @@ class Settings: ObservableObject {
         case appLanguage        = "appLanguage"
         case iCloudSyncEnabled  = "iCloudSyncEnabled"
         case quitDelaySeconds   = "quitDelaySeconds"
+        case isAnalyticsEnabled = "isAnalyticsEnabled"
     }
 
     init() {
@@ -176,6 +178,7 @@ class Settings: ObservableObject {
         store.set(excludedApps, forKey: Key.excludedApps.rawValue)
         store.set(appLanguage, forKey: Key.appLanguage.rawValue)
         store.set(quitDelaySeconds, forKey: Key.quitDelaySeconds.rawValue)
+        store.set(isAnalyticsEnabled, forKey: Key.isAnalyticsEnabled.rawValue)
         
         store.synchronize()
         log("Settings saved to iCloud")
@@ -224,6 +227,12 @@ class Settings: ObservableObject {
                 changed = true
             }
         }
+        if let v = store.object(forKey: Key.isAnalyticsEnabled.rawValue) as? Bool {
+            if v != isAnalyticsEnabled {
+                defaults.set(v, forKey: Key.isAnalyticsEnabled.rawValue)
+                changed = true
+            }
+        }
         
         if changed {
             objectWillChange.send()
@@ -240,7 +249,8 @@ class Settings: ObservableObject {
             Key.excludeBehaviour.rawValue: excludeBehaviour,
             Key.excludedApps.rawValue: excludedApps,
             Key.appLanguage.rawValue: appLanguage,
-            Key.quitDelaySeconds.rawValue: quitDelaySeconds
+            Key.quitDelaySeconds.rawValue: quitDelaySeconds,
+            Key.isAnalyticsEnabled.rawValue: isAnalyticsEnabled
         ]
         return try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
     }
@@ -267,6 +277,9 @@ class Settings: ObservableObject {
                 }
                 if let v = json[Key.quitDelaySeconds.rawValue] as? Int {
                     defaults.set(Self.clampQuitDelay(v), forKey: Key.quitDelaySeconds.rawValue)
+                }
+                if let v = json[Key.isAnalyticsEnabled.rawValue] as? Bool {
+                    defaults.set(v, forKey: Key.isAnalyticsEnabled.rawValue)
                 }
                 
                 saveToICloud()
@@ -305,6 +318,10 @@ class Settings: ObservableObject {
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.excludeBehaviour.rawValue)
             saveToICloud()
+            if isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("settings_changed", with: ["mode": newValue])
+                Aptabase.shared.flush()
+            }
         }
     }
 
@@ -342,7 +359,21 @@ class Settings: ObservableObject {
         get { Self.clampQuitDelay(defaults.object(forKey: Key.quitDelaySeconds.rawValue) as? Int ?? 10) }
         set {
             objectWillChange.send()
-            defaults.set(Self.clampQuitDelay(newValue), forKey: Key.quitDelaySeconds.rawValue)
+            let clamped = Self.clampQuitDelay(newValue)
+            defaults.set(clamped, forKey: Key.quitDelaySeconds.rawValue)
+            saveToICloud()
+            if isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("settings_changed", with: ["quit_delay": String(clamped)])
+                Aptabase.shared.flush()
+            }
+        }
+    }
+
+    var isAnalyticsEnabled: Bool {
+        get { defaults.object(forKey: Key.isAnalyticsEnabled.rawValue) as? Bool ?? true }
+        set {
+            objectWillChange.send()
+            defaults.set(newValue, forKey: Key.isAnalyticsEnabled.rawValue)
             saveToICloud()
         }
     }

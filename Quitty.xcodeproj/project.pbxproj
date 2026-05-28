@@ -7,13 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04288494EC26F40F70A868F1 /* Aptabase in Frameworks */ = {isa = PBXBuildFile; productRef = BF0118952C7C5503297538A1 /* Aptabase */; };
 		A1000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001 /* AppDelegate.swift */; };
 		A1000002 /* WindowWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000002 /* WindowWatcher.swift */; };
 		A1000003 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000003 /* Settings.swift */; };
 		A1000004 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000004 /* SettingsWindowController.swift */; };
 		A1000005 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000005 /* SettingsViewController.swift */; };
-		A1000007 /* FeedbackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000009 /* FeedbackEngine.swift */; };
 		A1000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000006 /* Assets.xcassets */; };
+		A1000007 /* FeedbackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000009 /* FeedbackEngine.swift */; };
 		A1000009 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A9000000 /* Localizable.strings */; };
 		A1000010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A9000010 /* InfoPlist.strings */; };
 		C6D775CE2F6AF0B5005D9982 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = C6D775CD2F6AF0B5005D9982 /* Sparkle */; };
@@ -42,6 +43,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C6D775CE2F6AF0B5005D9982 /* Sparkle in Frameworks */,
+				04288494EC26F40F70A868F1 /* Aptabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,12 +94,16 @@
 				A3000000 /* Sources */,
 				A3000001 /* Frameworks */,
 				A3000002 /* Resources */,
+				32918C3B4D2A1B81D582CF72 /* Copy Analytics Config */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = Quitty;
+			packageProductDependencies = (
+				BF0118952C7C5503297538A1 /* Aptabase */,
+			);
 			productName = Quitty;
 			productReference = A2000000 /* Quitty.app */;
 			productType = "com.apple.product-type.application";
@@ -124,6 +130,7 @@
 			mainGroup = A4000000;
 			packageReferences = (
 				C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				97CA5D8BE652F685BE3C6F46 /* XCRemoteSwiftPackageReference "aptabase-swift" */,
 			);
 			productRefGroup = A4000002 /* Products */;
 			projectDirPath = "";
@@ -146,6 +153,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		32918C3B4D2A1B81D582CF72 /* Copy Analytics Config */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/analytics.json",
+			);
+			name = "Copy Analytics Config";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/analytics.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "CONFIG_FILE=\"${SRCROOT}/analytics.json\"\nif [ -f \"$CONFIG_FILE\" ]; then\n    echo \"Copying analytics.json to bundle...\"\n    cp \"$CONFIG_FILE\" \"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources/analytics.json\"\nelse\n    echo \"analytics.json not found, skipping...\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A3000000 /* Sources */ = {
@@ -312,7 +342,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 40;
 				DEVELOPMENT_TEAM = U2NEAJ73J2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Quitty/Info.plist;
@@ -323,7 +353,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 1.1.12;
+				MARKETING_VERSION = 1.1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ct106.quitty;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -340,7 +370,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 40;
 				DEVELOPMENT_TEAM = U2NEAJ73J2;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Quitty/Info.plist;
@@ -351,7 +381,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 1.1.12;
+				MARKETING_VERSION = 1.1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ct106.quitty;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -383,6 +413,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		97CA5D8BE652F685BE3C6F46 /* XCRemoteSwiftPackageReference "aptabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/aptabase/aptabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.0;
+			};
+		};
 		C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -394,6 +432,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		BF0118952C7C5503297538A1 /* Aptabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 97CA5D8BE652F685BE3C6F46 /* XCRemoteSwiftPackageReference "aptabase-swift" */;
+			productName = Aptabase;
+		};
 		C6D775CD2F6AF0B5005D9982 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C6D775CC2F6AF0B5005D9982 /* XCRemoteSwiftPackageReference "Sparkle" */;

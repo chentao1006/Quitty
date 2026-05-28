@@ -13,6 +13,73 @@
 import Cocoa
 import ServiceManagement
 import Sparkle
+import Aptabase
+
+// Interceptor for Aptabase network requests to log them in the UI
+class AnalyticsNetworkInterceptor: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool {
+        if let urlString = request.url?.absoluteString, urlString.contains("aptabase.com"), URLProtocol.property(forKey: "Handled", in: request) == nil {
+            return true
+        }
+        return false
+    }
+    
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        return request
+    }
+    
+    override func startLoading() {
+        let newRequest = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+        URLProtocol.setProperty(true, forKey: "Handled", in: newRequest)
+        
+        let urlStr = request.url?.absoluteString ?? "Unknown URL"
+        var paramsStr = "None"
+        if let body = request.httpBody ?? request.httpBodyStream?.readAllData() {
+            paramsStr = String(data: body, encoding: .utf8) ?? "Binary"
+        }
+        
+        Settings.shared.log("🚀 Aptabase Request: \(urlStr)")
+        Settings.shared.log("📦 Params: \(paramsStr)")
+        
+        URLSession.shared.dataTask(with: newRequest as URLRequest) { [weak self] data, response, error in
+            if let error = error {
+                Settings.shared.log("❌ Aptabase Error: \(error.localizedDescription)")
+                self?.client?.urlProtocol(self!, didFailWithError: error)
+                return
+            }
+            if let response = response as? HTTPURLResponse {
+                Settings.shared.log("✅ Aptabase Response Code: \(response.statusCode)")
+                if let data = data, let responseText = String(data: data, encoding: .utf8), !responseText.isEmpty {
+                    Settings.shared.log("📄 Aptabase Result: \(responseText)")
+                }
+                self?.client?.urlProtocol(self!, didReceive: response, cacheStoragePolicy: .notAllowed)
+            }
+            if let data = data {
+                self?.client?.urlProtocol(self!, didLoad: data)
+            }
+            self?.client?.urlProtocolDidFinishLoading(self!)
+        }.resume()
+    }
+    
+    override func stopLoading() {}
+}
+
+extension InputStream {
+    func readAllData() -> Data {
+        self.open()
+        defer { self.close() }
+        var data = Data()
+        let bufferSize = 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while self.hasBytesAvailable {
+            let read = self.read(buffer, maxLength: bufferSize)
+            if read < 0 { break }
+            data.append(buffer, count: read)
+        }
+        return data
+    }
+}
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -61,7 +128,55 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        URLProtocol.registerClass(AnalyticsNetworkInterceptor.self)
         Settings.shared.log("applicationDidFinishLaunching started")
+        
+        // Initialize Aptabase if configuration exists
+        if let url = Bundle.main.url(forResource: "analytics", withExtension: "json"),
+           let data = try? Data(contentsOf: url),
+           let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let appKey = config["AptabaseAppKey"] as? String, !appKey.isEmpty {
+            
+            NSLog("QuittyDebug: Found appKey: \(appKey)")
+            Aptabase.shared.initialize(appKey: appKey)
+            NSLog("QuittyDebug: Aptabase initialized")
+            
+            let defaults = UserDefaults.standard
+            if !defaults.bool(forKey: "hasPromptedForAnalytics") {
+                let alert = NSAlert()
+                alert.messageText = Settings.shared.localizedString("analytics_prompt_title")
+                alert.informativeText = Settings.shared.localizedString("analytics_prompt_desc")
+                alert.addButton(withTitle: Settings.shared.localizedString("btn_agree"))
+                alert.addButton(withTitle: Settings.shared.localizedString("btn_decline"))
+                
+                let response = alert.runModal()
+                Settings.shared.isAnalyticsEnabled = (response == .alertFirstButtonReturn)
+                defaults.set(true, forKey: "hasPromptedForAnalytics")
+                NSLog("QuittyDebug: analytics prompt answered: \(Settings.shared.isAnalyticsEnabled)")
+            }
+            
+            NSLog("QuittyDebug: isAnalyticsEnabled: \(Settings.shared.isAnalyticsEnabled)")
+            if Settings.shared.isAnalyticsEnabled {
+                NSLog("QuittyDebug: Tracking app_launched")
+                Aptabase.shared.trackEvent("app_launched")
+                Aptabase.shared.flush()
+                NSLog("QuittyDebug: Flushed Aptabase")
+            }
+            
+            // Kickstart Aptabase polling which might not start if the app doesn't become active (LSUIElement)
+            NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+            
+            // Also explicitly schedule a flush timer just to be safe
+            Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { _ in
+                NSLog("QuittyDebug: Periodic flush timer triggered")
+                if Settings.shared.isAnalyticsEnabled {
+                    Aptabase.shared.flush()
+                }
+            }
+        } else {
+            NSLog("QuittyDebug: analytics.json not found or empty.")
+            Settings.shared.log("analytics.json not found or empty. Telemetry disabled.")
+        }
 
         // Setup menu bar icon first so the app is always visible
         setupMenuBar()

@@ -8,6 +8,7 @@
 
 import Cocoa
 import ApplicationServices
+import Aptabase
 
 // These Accessibility constants are defined as C CFSTR() macros in the HIServices
 // headers but don't bridge to Swift automatically. We define them here.
@@ -847,6 +848,10 @@ class WindowWatcher {
                             appName: appName,
                             bundlePath: app.bundleURL?.path
                         )
+                        if Settings.shared.isAnalyticsEnabled {
+                            Aptabase.shared.trackEvent("app_terminated_success")
+                            Aptabase.shared.flush()
+                        }
                         app.terminate()
                         self.pendingQuits.removeValue(forKey: pid)
                     }
