@@ -229,6 +229,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
 
         setupDailyPurgeTimer()
+        setupDailyUpdateCheck()
     }
 
     @objc private func handleSettingsUpdate() {
@@ -366,8 +367,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_settings"), action: #selector(showSettings), keyEquivalent: ","))
         
         // Add "Check for Updates"
-        let checkUpdateItem = NSMenuItem(title: Settings.shared.localizedString("menu_check_updates"), action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
-        checkUpdateItem.target = updaterController
+        let checkUpdateItem = NSMenuItem(title: Settings.shared.localizedString("menu_check_updates"), action: #selector(manualCheckForUpdates(_:)), keyEquivalent: "")
+        checkUpdateItem.target = self
         menu.addItem(checkUpdateItem)
 
         menu.addItem(NSMenuItem.separator())
@@ -469,5 +470,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setupDailyPurgeTimer()
         
         Settings.shared.log("Daily resource purge completed successfully.")
+    }
+
+    // MARK: - Updates
+
+    @objc func manualCheckForUpdates(_ sender: Any?) {
+        if Settings.shared.isAnalyticsEnabled {
+            Aptabase.shared.trackEvent("check_for_updates", with: ["automatic": "false"])
+        }
+        updaterController.checkForUpdates(sender)
+    }
+
+    private var updateCheckTimer: Timer?
+
+    private func setupDailyUpdateCheck() {
+        // Trigger a background check every 24 hours
+        updateCheckTimer = Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { [weak self] _ in
+            Settings.shared.log("Running automatic daily update check")
+            if Settings.shared.isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("check_for_updates", with: ["automatic": "true"])
+            }
+            self?.updaterController.updater.checkForUpdatesInBackground()
+        }
+        
+        // Also do an initial check shortly after launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+            Settings.shared.log("Running initial background update check")
+            if Settings.shared.isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("check_for_updates", with: ["automatic": "true"])
+            }
+            self?.updaterController.updater.checkForUpdatesInBackground()
+        }
     }
 }

@@ -269,13 +269,13 @@ struct AboutSettingsView: View {
             VStack(spacing: 12) {
                 Button(settings.localizedString("menu_check_updates")) {
                     if let delegate = NSApplication.shared.delegate as? AppDelegate {
-                        delegate.updaterController.checkForUpdates(nil)
+                        delegate.manualCheckForUpdates(nil)
                     }
                 }
                 .buttonStyle(.bordered)
                 
-                Link(destination: URL(string: "https://github.com/chentao1006/Quitty")!) {
-                    Text(settings.localizedString("github"))
+                Link(destination: URL(string: "https://github.com/chentao1006/Quitty/issues")!) {
+                    Text(settings.localizedString("feedback_suggestions"))
                         .font(.body)
                         .foregroundColor(.accentColor)
                 }
@@ -321,6 +321,21 @@ struct AppListSettingsView: View {
                     .foregroundColor(.secondary)
                 TextField(settings.localizedString("search_apps_placeholder"), text: $searchText)
                     .textFieldStyle(.roundedBorder)
+                    .overlay(
+                        HStack {
+                            Spacer()
+                            if !searchText.isEmpty {
+                                Button(action: {
+                                    searchText = ""
+                                }) {
+                                    Image(systemName: "multiply.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.trailing, 6)
+                            }
+                        }
+                    )
             }
             
             VStack(spacing: 0) {

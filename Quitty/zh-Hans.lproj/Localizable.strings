@@ -68,6 +68,7 @@
 "btn_clear_logs" = "清除日志";
 "btn_export_logs" = "导出日志...";
 "github" = "GitHub";
+"feedback_suggestions" = "反馈与建议";
 
 "tab_history" = "历史";
 "section_history" = "退出历史";

@@ -6,6 +6,7 @@
 
 import Cocoa
 import Combine
+import Aptabase
 
 // MARK: - Data Models
 
@@ -165,6 +166,11 @@ class FeedbackEngine: ObservableObject {
         setLastFeedbackType(.falseQuit, for: record.bundleID)
         let logMsg = String(format: Settings.shared.localizedString("log_feedback_false_quit"), record.appName)
         Settings.shared.log(logMsg)
+        
+        if Settings.shared.isAnalyticsEnabled {
+            Aptabase.shared.trackEvent("feedback_reported", with: ["type": "false_quit"])
+        }
+        
         objectWillChange.send()
     }
 
@@ -189,6 +195,11 @@ class FeedbackEngine: ObservableObject {
             
             let logMsg = String(format: Settings.shared.localizedString("log_feedback_false_quit_no_history"), appName)
             Settings.shared.log(logMsg)
+            
+            if Settings.shared.isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("feedback_reported", with: ["type": "false_quit"])
+            }
+            
             objectWillChange.send()
         }
     }
@@ -252,6 +263,11 @@ class FeedbackEngine: ObservableObject {
 
         let logMsg = String(format: Settings.shared.localizedString("log_feedback_cant_quit"), appName, snapshots.count)
         Settings.shared.log(logMsg)
+        
+        if Settings.shared.isAnalyticsEnabled {
+            Aptabase.shared.trackEvent("feedback_reported", with: ["type": "cant_quit"])
+        }
+        
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
 
@@ -278,6 +294,11 @@ class FeedbackEngine: ObservableObject {
             self.saveRulesInternal()
             
             Settings.shared.log("Feedback [\(type.rawValue)] undone for \(bundleID).")
+            
+            if Settings.shared.isAnalyticsEnabled {
+                Aptabase.shared.trackEvent("feedback_undone")
+            }
+            
             DispatchQueue.main.async { self.objectWillChange.send() }
         }
     }
@@ -313,6 +334,11 @@ class FeedbackEngine: ObservableObject {
         }
         
         Settings.shared.log("Feedback record \(recordID) undone.")
+        
+        if Settings.shared.isAnalyticsEnabled {
+            Aptabase.shared.trackEvent("feedback_undone")
+        }
+        
         objectWillChange.send()
     }
 

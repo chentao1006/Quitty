@@ -68,6 +68,7 @@
 "btn_clear_logs" = "Clear Logs";
 "btn_export_logs" = "Export Logs...";
 "github" = "GitHub";
+"feedback_suggestions" = "Feedback & Suggestions";
 
 "tab_history" = "History";
 "section_history" = "QUIT HISTORY";
