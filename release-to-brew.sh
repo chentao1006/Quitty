@@ -183,35 +183,6 @@ cask "$CASK_TOKEN" do
 end
 EOF
 
-    cat >"$TAP_DIR/README.md" <<EOF
-# Homebrew Tap
-
-Shared Homebrew tap for apps by ${TAP_OWNER}.
-
-## Available Casks
-
-### Quitty
-
-\`\`\`sh
-brew install --cask ${TAP_OWNER}/${TAP_NAME}/${CASK_TOKEN}
-\`\`\`
-
-### Flux Monitor
-
-\`\`\`sh
-brew install --cask ${TAP_OWNER}/${TAP_NAME}/flux-monitor
-\`\`\`
-
-## Tap First
-
-You can also tap the repository first, then install casks by token:
-
-\`\`\`sh
-brew tap ${TAP_OWNER}/${TAP_NAME}
-brew install --cask ${CASK_TOKEN}
-\`\`\`
-EOF
-
     rm -f "$TAP_DIR/.github/workflows/tests.yml"
     rmdir "$TAP_DIR/.github/workflows" "$TAP_DIR/.github" 2>/dev/null || true
 }
@@ -245,7 +216,7 @@ run_brew_checks() {
 }
 
 commit_and_push() {
-    git -C "$TAP_DIR" add "Casks/${CASK_TOKEN}.rb" README.md
+    git -C "$TAP_DIR" add "Casks/${CASK_TOKEN}.rb"
     if git -C "$TAP_DIR" ls-files --error-unmatch .github/workflows/tests.yml >/dev/null 2>&1; then
         git -C "$TAP_DIR" add -A .github/workflows/tests.yml
     fi
