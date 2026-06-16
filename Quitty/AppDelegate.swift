@@ -326,6 +326,68 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         
+        // --- 1. Running Apps Section ---
+        let runningApps = NSWorkspace.shared.runningApplications
+            .filter { app in
+                app.activationPolicy == .regular && app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+            }
+            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+
+        if !runningApps.isEmpty {
+            let headerItem = NSMenuItem(title: Settings.shared.localizedString("menu_running_apps"), action: nil, keyEquivalent: "")
+            headerItem.isEnabled = false
+            menu.addItem(headerItem)
+
+            for app in runningApps {
+                guard let appName = app.localizedName, let bundleID = app.bundleIdentifier else { continue }
+                
+                let appItem = NSMenuItem(title: appName, action: nil, keyEquivalent: "")
+                let path = app.bundleURL?.path
+                if let appPath = path {
+                    let icon = NSWorkspace.shared.icon(forFile: appPath)
+                    icon.size = NSSize(width: 16, height: 16)
+                    appItem.image = icon
+                } else {
+                    let icon = NSWorkspace.shared.icon(forFileType: "app")
+                    icon.size = NSSize(width: 16, height: 16)
+                    appItem.image = icon
+                }
+                
+                let submenu = NSMenu()
+                
+                let quitItem = NSMenuItem(title: Settings.shared.localizedString("menu_quit_now"), action: #selector(quitRunningApp(_:)), keyEquivalent: "")
+                quitItem.representedObject = NSNumber(value: app.processIdentifier)
+                quitItem.target = self
+                submenu.addItem(quitItem)
+                
+                if Settings.shared.shouldQuitApp(bundlePath: path ?? "", bundleID: bundleID) {
+                    let cantQuitItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_cant_quit"), action: #selector(feedbackCantQuitAndQuit(_:)), keyEquivalent: "")
+                    cantQuitItem.representedObject = NSNumber(value: app.processIdentifier)
+                    cantQuitItem.target = self
+                    submenu.addItem(cantQuitItem)
+                }
+                
+                let isInList = Settings.shared.excludedApps.contains(bundleID) || (path.map { Settings.shared.excludedApps.contains($0) } ?? false)
+                
+                let listActionTitle = isInList 
+                    ? Settings.shared.localizedString("menu_remove_from_list")
+                    : Settings.shared.localizedString("menu_add_to_list")
+                
+                let listItem = NSMenuItem(title: listActionTitle, action: #selector(toggleAppInList(_:)), keyEquivalent: "")
+                
+                var appInfo = ["id": bundleID]
+                if let p = path { appInfo["path"] = p }
+                listItem.representedObject = appInfo
+                listItem.target = self
+                submenu.addItem(listItem)
+                
+                appItem.submenu = submenu
+                menu.addItem(appItem)
+            }
+            menu.addItem(NSMenuItem.separator())
+        }
+        
+        // --- 2. Recently Quit Section ---
         // Deduplicate history by bundleID, keeping only the most recent entry
         var seenBundleIDs = Set<String>()
         var history: [TerminationRecord] = []
@@ -344,8 +406,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
             for record in history {
                 let appItem = NSMenuItem(title: record.appName, action: nil, keyEquivalent: "")
-                let icon = FeedbackEngine.shared.appIcon(for: record)
+                var icon = FeedbackEngine.shared.appIcon(for: record)
                 icon.size = NSSize(width: 16, height: 16)
+                icon = icon.grayscaled()
                 appItem.image = icon
                 
                 let submenu = NSMenu()
@@ -394,6 +457,44 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    @objc private func quitRunningApp(_ sender: NSMenuItem) {
+        guard let pid = (sender.representedObject as? NSNumber)?.int32Value,
+              let app = NSRunningApplication(processIdentifier: pid) else { return }
+        app.terminate()
+    }
+
+    @objc private func feedbackCantQuitAndQuit(_ sender: NSMenuItem) {
+        guard let pid = (sender.representedObject as? NSNumber)?.int32Value,
+              let app = NSRunningApplication(processIdentifier: pid) else { return }
+        
+        let bundleID = app.bundleIdentifier ?? ""
+        let appName = app.localizedName ?? "Unknown"
+        
+        FeedbackEngine.shared.reportCantQuit(bundleID: bundleID, appName: appName, pid: pid)
+        app.terminate()
+    }
+
+    @objc private func toggleAppInList(_ sender: NSMenuItem) {
+        guard let appInfo = sender.representedObject as? [String: String],
+              let bundleID = appInfo["id"] else { return }
+        let path = appInfo["path"]
+        
+        var list = Settings.shared.excludedApps
+        
+        let idIndex = list.firstIndex(of: bundleID)
+        let pathIndex = path.flatMap { list.firstIndex(of: $0) }
+        
+        if idIndex != nil || pathIndex != nil {
+            // Remove it
+            list.removeAll { $0 == bundleID || (path != nil && $0 == path) }
+        } else {
+            // Add it (prefer bundleID)
+            list.append(bundleID)
+        }
+        
+        Settings.shared.excludedApps = list
     }
 
     // MARK: - Settings Window
@@ -501,5 +602,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             self?.updaterController.updater.checkForUpdatesInBackground()
         }
+    }
+}
+
+extension NSImage {
+    func grayscaled() -> NSImage {
+        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return self }
+        let ciImage = CIImage(cgImage: cgImage)
+        
+        guard let filter = CIFilter(name: "CIColorControls") else { return self }
+        filter.setValue(ciImage, forKey: kCIInputImageKey)
+        filter.setValue(0.0, forKey: kCIInputSaturationKey)
+        
+        guard let outputCIImage = filter.outputImage else { return self }
+        
+        let rep = NSCIImageRep(ciImage: outputCIImage)
+        let nsImage = NSImage(size: self.size)
+        nsImage.addRepresentation(rep)
+        return nsImage
     }
 }

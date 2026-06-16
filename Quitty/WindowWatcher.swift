@@ -848,10 +848,7 @@ class WindowWatcher {
                             appName: appName,
                             bundlePath: app.bundleURL?.path
                         )
-                        if Settings.shared.isAnalyticsEnabled {
-                            Aptabase.shared.trackEvent("app_terminated_success")
-                            Aptabase.shared.flush()
-                        }
+
                         app.terminate()
                         self.pendingQuits.removeValue(forKey: pid)
                     }

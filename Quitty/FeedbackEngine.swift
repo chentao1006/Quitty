@@ -460,8 +460,10 @@ class FeedbackEngine: ObservableObject {
         if let feedbackData = NSUbiquitousKeyValueStore.default.data(forKey: iCloudFeedbacksKey) {
             do {
                 let incoming = try JSONDecoder().decode([TerminationRecord].self, from: feedbackData)
-                mergeFeedbacks(incoming)
-                Settings.shared.log("Merged feedbacks from iCloud.")
+                DispatchQueue.main.async {
+                    self.mergeFeedbacks(incoming)
+                    Settings.shared.log("Merged feedbacks from iCloud.")
+                }
             } catch { print("iCloud Feedbacks Decode Error: \(error)") }
         }
         

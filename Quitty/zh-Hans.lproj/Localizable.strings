@@ -5,6 +5,11 @@
 "menu_reopen" = "重新打开";
 "menu_feedback_reopen" = "反馈误退（并重新打开）";
 "menu_recently_quit" = "最近退出";
+"menu_running_apps" = "正在运行";
+"menu_quit_now" = "立即退出";
+"menu_feedback_cant_quit" = "反馈未退（并退出）";
+"menu_add_to_list" = "添加到列表";
+"menu_remove_from_list" = "从列表移出";
 "subtitle" = "让指定应用在最后一个窗口关闭时自动退出";
 
 "tab_general" = "通用";

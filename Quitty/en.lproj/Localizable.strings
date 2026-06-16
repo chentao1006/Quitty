@@ -5,6 +5,11 @@
 "menu_reopen" = "Reopen";
 "menu_feedback_reopen" = "Report False Quit (and Reopen)";
 "menu_recently_quit" = "Recently Quit";
+"menu_running_apps" = "Running Apps";
+"menu_quit_now" = "Quit Immediately";
+"menu_feedback_cant_quit" = "Report Won't Quit (and Quit)";
+"menu_add_to_list" = "Add to List";
+"menu_remove_from_list" = "Remove from List";
 "subtitle" = "Auto-quit certain apps when their last window closes";
 
 "tab_general" = "General";
@@ -77,15 +82,15 @@
 "btn_clear_history" = "Clear History";
 "btn_false_quit" = "Report False Quit";
 "btn_cant_quit" = "Report Won't Quit";
-"btn_feedback" = "Feedback";
+"btn_feedback" = "Report";
 "feedback_false_quit" = "Reported: False Quit";
 "feedback_cant_quit" = "Reported: Won't Quit";
 "feedback_reported" = "Reported";
-"log_feedback_false_quit" = "Feedback [False Quit] recorded for %@.";
-"log_feedback_false_quit_no_history" = "Feedback [False Quit] (no history) recorded for %@.";
-"log_feedback_cant_quit" = "Feedback [Won't Quit] for %@. Captured %d windows.";
+"log_feedback_false_quit" = "Report [False Quit] recorded for %@.";
+"log_feedback_false_quit_no_history" = "Report [False Quit] (no history) recorded for %@.";
+"log_feedback_cant_quit" = "Report [Won't Quit] for %@. Captured %d windows.";
 "log_learned_ghost" = "Learned ghost (%dx%d) from Failed Quit.";
-"btn_undo_feedback" = "Undo Feedback";
+"btn_undo_feedback" = "Undo Report";
 "btn_browse" = "Browse Files...";
 "running_apps" = "Running Apps";
 "section_live_monitor" = "LIVE MONITOR";
