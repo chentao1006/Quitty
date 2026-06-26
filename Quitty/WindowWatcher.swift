@@ -652,7 +652,7 @@ class WindowWatcher {
 
     // MARK: - Quit Logic
 
-    private func checkAndQuit(app: NSRunningApplication) {
+    private func checkAndQuit(app: NSRunningApplication, isSecondConfirmation: Bool = false) {
         let pid = app.processIdentifier
         let appName = app.localizedName ?? "Unknown"
         
@@ -668,16 +668,18 @@ class WindowWatcher {
         }
 
         // DEBOUNCE: Don't check the same app too frequently (min 3s between checks)
-        if let lastCheck = lastCheckTimes[pid], Date().timeIntervalSince(lastCheck) < 3.0 {
-            return
+        if !isSecondConfirmation {
+            if let lastCheck = lastCheckTimes[pid], Date().timeIntervalSince(lastCheck) < 3.0 {
+                return
+            }
+            lastCheckTimes[pid] = Date()
         }
-        lastCheckTimes[pid] = Date()
 
         // Safety: If a space change just happened, wait significantly longer
         if Date().timeIntervalSince(lastSpaceChangeDate) < 2.0 {
             Settings.shared.log("Space transition in progress. Re-scheduling check for \(appName).")
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
-                self?.checkAndQuit(app: app)
+                self?.checkAndQuit(app: app, isSecondConfirmation: isSecondConfirmation)
             }
             return
         }
@@ -733,11 +735,28 @@ class WindowWatcher {
 
                 self.pendingQuits[pid]?.cancel()
                 
-                let isSpecial = self.isSpecialCareApp(app)
-                let isAppCurrentlyActive = app.isActive
-                // Slightly more responsive delays
-                let extraDelay = (isAppCurrentlyActive ? 2.5 : 0.5) + (isSpecial ? 2.0 : 1.0)
-                let totalDelay = 1.5 + extraDelay + TimeInterval(Settings.shared.quitDelaySeconds)
+                let totalDelay: TimeInterval
+                if isSecondConfirmation {
+                    // For the second confirmation, we already waited the 1.5s gap.
+                    // We just need a tiny delay (0.1s) for safety/scheduling.
+                    totalDelay = 0.1
+                } else {
+                    let quitDelay = Double(Settings.shared.quitDelaySeconds)
+                    let isSpecial = self.isSpecialCareApp(app)
+                    let isAppCurrentlyActive = app.isActive
+                    
+                    let baseSafetyDelay: TimeInterval
+                    if quitDelay == 0 {
+                        // When delay is set to 0, we want to be as fast as possible while maintaining safety.
+                        baseSafetyDelay = isAppCurrentlyActive ? 1.0 : 0.2
+                    } else {
+                        // When a delay is set, the user expects a delay. Keep a modest safety delay.
+                        baseSafetyDelay = isAppCurrentlyActive ? 1.5 : 0.5
+                    }
+                    
+                    let specialBuffer = isSpecial ? (quitDelay == 0 ? 0.8 : 1.5) : 0.0
+                    totalDelay = quitDelay + baseSafetyDelay + specialBuffer
+                }
 
                 // Capture the generation at the time we schedule; if a window appears
                 // before the workItem fires it will bump quitGenerations[pid] and the
@@ -835,7 +854,7 @@ class WindowWatcher {
                             self.pendingQuits.removeValue(forKey: pid)
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                                 guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
-                                self.checkAndQuit(app: app)
+                                self.checkAndQuit(app: app, isSecondConfirmation: true)
                             }
                             return
                         }

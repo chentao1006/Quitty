@@ -94,7 +94,7 @@ if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
     echo "ℹ️ Tag v$NEW_VERSION already exists locally, will overwrite if needed during release."
     git tag -d "v$NEW_VERSION" >/dev/null 2>&1
 fi
-git tag "v$NEW_VERSION"
+git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
 
 
 
