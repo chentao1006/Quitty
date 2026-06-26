@@ -3,6 +3,14 @@
     <channel>
         <title>Quitty</title>
         <item>
+            <title>1.1.16</title>
+            <pubDate>Fri, 26 Jun 2026 21:59:09 +0800</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>1.1.16</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/chentao1006/quitty/releases/download/v1.1.16/Quitty.dmg" length="4409557" type="application/octet-stream" sparkle:edSignature="/Jr0VXTnJyh5hS1yfk+fV9S7H44Vz7IsVU7CnSjeCDlW8me13juAVdh13yMzrP+bi1DZjoGXyhKL6vEOzF9rAA=="/>
+        </item>
+        <item>
             <title>1.1.15</title>
             <pubDate>Wed, 17 Jun 2026 07:58:18 +0800</pubDate>
             <sparkle:version>43</sparkle:version>
@@ -17,14 +25,6 @@
             <sparkle:shortVersionString>1.1.14</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/chentao1006/quitty/releases/download/v1.1.14/Quitty.dmg" length="4391713" type="application/octet-stream" sparkle:edSignature="yhl/+7b2KtdbW2q0Fx8oyBSZxhnNYZAV6SKLGzGmPC57mVbfi5dSlIvHgzNIajvODT/xDFomjLyVD61D3eoZDQ=="/>
-        </item>
-        <item>
-            <title>1.1.13</title>
-            <pubDate>Thu, 28 May 2026 23:53:33 +0800</pubDate>
-            <sparkle:version>41</sparkle:version>
-            <sparkle:shortVersionString>1.1.13</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>11.5</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/chentao1006/quitty/releases/download/v1.1.13/Quitty.dmg" length="4384419" type="application/octet-stream" sparkle:edSignature="AMYVgggnFDrtarUD+/DtK7+TsERpU39FWHaG44Jj0CdTBU6Km2Et37rBMr6g9FcymjGOnp8wGLhSvckO93HcCA=="/>
         </item>
     </channel>
 </rss>
