@@ -117,6 +117,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let windowWatcher = WindowWatcher()
     private var watcherStarted = false
     private var purgeTimer: Timer?
+    private var isAptabaseInitialized = false
     
     // Sparkle updater
     let updaterController: SPUStandardUpdaterController
@@ -139,6 +140,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             
             NSLog("QuittyDebug: Found appKey: \(appKey)")
             Aptabase.shared.initialize(appKey: appKey)
+            isAptabaseInitialized = true
             NSLog("QuittyDebug: Aptabase initialized")
             
             let defaults = UserDefaults.standard
@@ -361,7 +363,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 submenu.addItem(quitItem)
                 
                 if Settings.shared.shouldQuitApp(bundlePath: path ?? "", bundleID: bundleID) {
-                    let cantQuitItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_cant_quit"), action: #selector(feedbackCantQuitAndQuit(_:)), keyEquivalent: "")
+                    let cantQuitItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_cant_quit"), action: #selector(feedbackCantQuit(_:)), keyEquivalent: "")
                     cantQuitItem.representedObject = NSNumber(value: app.processIdentifier)
                     cantQuitItem.target = self
                     submenu.addItem(cantQuitItem)
@@ -417,8 +419,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 reopenItem.representedObject = record.bundleID
                 submenu.addItem(reopenItem)
 
-                let feedbackItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_reopen"), action: #selector(feedbackAndReopen(_:)), keyEquivalent: "")
+                let feedbackItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_reopen"), action: #selector(feedbackFalseQuit(_:)), keyEquivalent: "")
                 feedbackItem.representedObject = record.id
+                feedbackItem.target = self
                 submenu.addItem(feedbackItem)
                 
                 appItem.submenu = submenu
@@ -438,18 +441,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: Settings.shared.localizedString("menu_quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
-    @objc private func feedbackAndReopen(_ sender: NSMenuItem) {
+    @objc private func feedbackFalseQuit(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? UUID,
               let record = FeedbackEngine.shared.history.first(where: { $0.id == id }) else { return }
         
         FeedbackEngine.shared.reportFalseQuit(recordID: id)
-        
-        // Reopen
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: record.bundleID) {
-            NSWorkspace.shared.open(url)
-        } else if let path = record.appIconPath {
-            NSWorkspace.shared.open(URL(fileURLWithPath: path))
-        }
+        showFeedbackResult(for: record.appName)
     }
 
     @objc private func reopenApp(_ sender: NSMenuItem) {
@@ -465,7 +462,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         app.terminate()
     }
 
-    @objc private func feedbackCantQuitAndQuit(_ sender: NSMenuItem) {
+    @objc private func feedbackCantQuit(_ sender: NSMenuItem) {
         guard let pid = (sender.representedObject as? NSNumber)?.int32Value,
               let app = NSRunningApplication(processIdentifier: pid) else { return }
         
@@ -473,7 +470,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appName = app.localizedName ?? "Unknown"
         
         FeedbackEngine.shared.reportCantQuit(bundleID: bundleID, appName: appName, pid: pid)
-        app.terminate()
+        showFeedbackResult(for: appName)
+    }
+
+    private func showFeedbackResult(for appName: String) {
+        let alert = NSAlert()
+        alert.messageText = Settings.shared.localizedString("alert_feedback_title")
+        alert.informativeText = String(format: Settings.shared.localizedString("alert_feedback_msg"), appName)
+        alert.addButton(withTitle: Settings.shared.localizedString("btn_ok"))
+        alert.runModal()
     }
 
     @objc private func toggleAppInList(_ sender: NSMenuItem) {
@@ -553,6 +558,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func performDailyPurge() {
         Settings.shared.log("Starting scheduled daily resource purge...")
+
+        // This heartbeat intentionally does not follow the anonymous analytics preference.
+        // It records one event at midnight while Quitty is running.
+        if isAptabaseInitialized {
+            Aptabase.shared.trackEvent("app_daily_active")
+            Aptabase.shared.flush()
+        }
         
         // 1. Tell the watcher to rebuild everything
         windowWatcher.purgeResources()

@@ -3,11 +3,11 @@
 "menu_check_updates" = "Check for Updates...";
 "menu_quit" = "Quit Quitty";
 "menu_reopen" = "Reopen";
-"menu_feedback_reopen" = "Report False Quit (and Reopen)";
+"menu_feedback_reopen" = "Report False Quit";
 "menu_recently_quit" = "Recently Quit";
 "menu_running_apps" = "Running Apps";
 "menu_quit_now" = "Quit Immediately";
-"menu_feedback_cant_quit" = "Report Won't Quit (and Quit)";
+"menu_feedback_cant_quit" = "Report Won't Quit";
 "menu_add_to_list" = "Add to List";
 "menu_remove_from_list" = "Remove from List";
 "subtitle" = "Auto-quit certain apps when their last window closes";
@@ -62,6 +62,9 @@
 
 "alert_hidden_title" = "Menu Bar Icon Hidden";
 "alert_hidden_msg" = "Quitty will no longer appear in the menu bar. To open settings again, simply launch the app from your Applications folder.";
+"alert_feedback_title" = "Feedback Recorded";
+"alert_feedback_msg" = "Your feedback about %@ has been recorded and will be used to improve Quitty on this Mac.";
+"btn_ok" = "OK";
 
 "panel_choose_app" = "Choose Application";
 "col_app" = "Application";

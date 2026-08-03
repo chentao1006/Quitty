@@ -3,11 +3,11 @@
 "menu_check_updates" = "检查更新...";
 "menu_quit" = "退出";
 "menu_reopen" = "重新打开";
-"menu_feedback_reopen" = "反馈误退（并重新打开）";
+"menu_feedback_reopen" = "反馈误退";
 "menu_recently_quit" = "最近退出";
 "menu_running_apps" = "正在运行";
 "menu_quit_now" = "立即退出";
-"menu_feedback_cant_quit" = "反馈未退（并退出）";
+"menu_feedback_cant_quit" = "反馈未退";
 "menu_add_to_list" = "添加到列表";
 "menu_remove_from_list" = "从列表移出";
 "subtitle" = "让指定应用在最后一个窗口关闭时自动退出";
@@ -62,6 +62,9 @@
 
 "alert_hidden_title" = "菜单栏图标已隐藏";
 "alert_hidden_msg" = "“静隐”将不再显示在菜单栏中。如需再次打开设置，请从“应用程序”文件夹重新启动本应用。";
+"alert_feedback_title" = "反馈已记录";
+"alert_feedback_msg" = "已记录 %@ 的反馈，将用于改进此 Mac 上的静隐。";
+"btn_ok" = "好";
 
 "panel_choose_app" = "选择应用程序";
 "col_app" = "应用程序";
