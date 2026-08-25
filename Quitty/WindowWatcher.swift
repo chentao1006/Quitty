@@ -228,7 +228,7 @@ class WindowWatcher {
             // 3. For apps still in workspace, check if they are still relevant
             for pid in Array(self.observers.keys) {
                 if let app = NSRunningApplication(processIdentifier: pid),
-                   !Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier) {
+                   !Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier, activationPolicy: app.activationPolicy) {
                     Settings.shared.log("Cleaning up observer for \(app.localizedName ?? "app") - no longer in target list")
                     self.removeObserverForPid(pid)
                     self.lastHookTimes.removeValue(forKey: pid)
@@ -367,7 +367,7 @@ class WindowWatcher {
         let now = Date()
         let activeApps = NSWorkspace.shared.runningApplications
         for app in activeApps {
-            guard Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier) else { continue }
+            guard Settings.shared.isPotentiallyRelevant(bundlePath: app.bundleURL?.path, bundleID: app.bundleIdentifier, activationPolicy: app.activationPolicy) else { continue }
             
             // Only periodically check apps we are already watching and that are NOT active
             let pid = app.processIdentifier
@@ -484,7 +484,7 @@ class WindowWatcher {
         guard !app.isTerminated else { return }
 
         // ONLY watch apps that we are supposed to handle to save resources and avoid noise
-        if !Settings.shared.isPotentiallyRelevant(bundlePath: bundlePath, bundleID: bundleID) {
+        if !Settings.shared.isPotentiallyRelevant(bundlePath: bundlePath, bundleID: bundleID, activationPolicy: app.activationPolicy) {
             return
         }
 
@@ -723,7 +723,7 @@ class WindowWatcher {
             // Check settings
             guard let bundlePath = app.bundleURL?.path else { return }
             let bundleID = app.bundleIdentifier
-            if !Settings.shared.shouldQuitApp(bundlePath: bundlePath, bundleID: bundleID) {
+            if !Settings.shared.shouldQuitApp(bundlePath: bundlePath, bundleID: bundleID, activationPolicy: app.activationPolicy) {
                 return
             }
 
@@ -856,6 +856,20 @@ class WindowWatcher {
                                 guard let self = self, let app = NSRunningApplication(processIdentifier: pid) else { return }
                                 self.checkAndQuit(app: app, isSecondConfirmation: true)
                             }
+                            return
+                        }
+
+                        // The app may have changed role or rules while this quit was
+                        // delayed. Re-evaluate immediately before termination.
+                        guard let bundlePath = app.bundleURL?.path,
+                              Settings.shared.shouldQuitApp(
+                                bundlePath: bundlePath,
+                                bundleID: app.bundleIdentifier,
+                                activationPolicy: app.activationPolicy
+                              ) else {
+                            Settings.shared.log("Final check aborted for \(appName) – app is no longer eligible for termination.")
+                            self.finalZeroConfirmations.removeValue(forKey: pid)
+                            self.pendingQuits.removeValue(forKey: pid)
                             return
                         }
 

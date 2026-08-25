@@ -414,9 +414,15 @@ class Settings: ObservableObject {
 
     // MARK: - App Filter Logic
 
+    /// Returns true if an app must never be terminated by Quitty.
+    func shouldProtectApp(bundlePath: String?, bundleID: String?, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
+        guard let bundlePath else { return true }
+        return isProtectedApp(bundlePath: bundlePath, bundleID: bundleID, activationPolicy: activationPolicy)
+    }
+
     /// Returns true if the app at the given bundle path should be auto-quit
-    func shouldQuitApp(bundlePath: String, bundleID: String?) -> Bool {
-        if isSystemApp(bundlePath: bundlePath, bundleID: bundleID) { return false }
+    func shouldQuitApp(bundlePath: String, bundleID: String?, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
+        if shouldProtectApp(bundlePath: bundlePath, bundleID: bundleID, activationPolicy: activationPolicy) { return false }
 
         let isInList = excludedApps.contains(bundlePath) || excludedApps.contains(bundleID ?? "")
 
@@ -430,9 +436,9 @@ class Settings: ObservableObject {
     }
 
     /// Returns true if we should even bother watching this app's windows
-    func isPotentiallyRelevant(bundlePath: String?, bundleID: String?) -> Bool {
+    func isPotentiallyRelevant(bundlePath: String?, bundleID: String?, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
         guard let path = bundlePath else { return false }
-        if isSystemApp(bundlePath: path, bundleID: bundleID) { return false }
+        if shouldProtectApp(bundlePath: path, bundleID: bundleID, activationPolicy: activationPolicy) { return false }
 
         let isInList = excludedApps.contains(path) || excludedApps.contains(bundleID ?? "")
 
@@ -445,26 +451,42 @@ class Settings: ObservableObject {
         }
     }
 
-    private func isSystemApp(bundlePath: String, bundleID: String?) -> Bool {
-        // Never quit system services
-        let systemPaths = [
-            "/System/Library/CoreServices/Finder.app",
-            "/System/Library/CoreServices/Spotlight.app",
-            "/System/Library/CoreServices/NotificationCenter.app",
-            "/System/Library/CoreServices/SystemUIServer.app",
-            "/System/Library/CoreServices/Dock.app",
-            "/System/Library/CoreServices/ControlCenter.app",
-            "/System/Library/CoreServices/WindowManager.app",
-            "/System/Library/CoreServices/TextInputMenuAgent.app",
-            "/System/Library/CoreServices/System Events.app",
-            "/usr/libexec/backboardd"
-        ]
-        if systemPaths.contains(bundlePath) { return true }
+    private func isProtectedApp(bundlePath: String, bundleID: String?, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
+        if !isStandaloneApplicationBundle(bundlePath) { return true }
+        if isProtectedSystemApp(bundlePath: bundlePath, activationPolicy: activationPolicy) { return true }
 
         // Never quit ourselves
         let myBundleID = Bundle.main.bundleIdentifier ?? ""
         if let bid = bundleID, bid == myBundleID { return true }
         
         return false
+    }
+
+    private func isStandaloneApplicationBundle(_ bundlePath: String) -> Bool {
+        let appSuffix = ".app"
+        let lowercasedPath = bundlePath.lowercased()
+        return lowercasedPath.hasSuffix(appSuffix) &&
+               !lowercasedPath.contains(appSuffix + "/")
+    }
+
+    private func isProtectedSystemApp(bundlePath: String, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
+        let coreServicesPath = "/System/Library/CoreServices/"
+        let coreServicesUserAppsPath = coreServicesPath + "Applications/"
+
+        // CoreServices contains desktop, login, and system-service apps. Its
+        // Applications subdirectory is deliberately excluded because it holds
+        // user-facing utilities such as Keychain Access and Archive Utility.
+        if bundlePath.hasPrefix(coreServicesPath) && !bundlePath.hasPrefix(coreServicesUserAppsPath) {
+            return true
+        }
+
+        // Apple security components such as MRT and XProtect live here.
+        if bundlePath.hasPrefix("/Library/Apple/System/") { return true }
+
+        guard bundlePath.hasPrefix("/System/") else { return false }
+
+        // System agents and XPC services have no normal app lifecycle for Quitty
+        // to manage. Keep regular user-facing system apps eligible.
+        return activationPolicy == .accessory || activationPolicy == .prohibited
     }
 }

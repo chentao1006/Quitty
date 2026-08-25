@@ -356,13 +356,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
                 
                 let submenu = NSMenu()
+
+                let isProtected = Settings.shared.shouldProtectApp(
+                    bundlePath: path,
+                    bundleID: bundleID,
+                    activationPolicy: app.activationPolicy
+                )
+                if !isProtected {
+                    let quitItem = NSMenuItem(title: Settings.shared.localizedString("menu_quit_now"), action: #selector(quitRunningApp(_:)), keyEquivalent: "")
+                    quitItem.representedObject = NSNumber(value: app.processIdentifier)
+                    quitItem.target = self
+                    submenu.addItem(quitItem)
+                }
                 
-                let quitItem = NSMenuItem(title: Settings.shared.localizedString("menu_quit_now"), action: #selector(quitRunningApp(_:)), keyEquivalent: "")
-                quitItem.representedObject = NSNumber(value: app.processIdentifier)
-                quitItem.target = self
-                submenu.addItem(quitItem)
-                
-                if Settings.shared.shouldQuitApp(bundlePath: path ?? "", bundleID: bundleID) {
+                if Settings.shared.shouldQuitApp(bundlePath: path ?? "", bundleID: bundleID, activationPolicy: app.activationPolicy) {
                     let cantQuitItem = NSMenuItem(title: Settings.shared.localizedString("menu_feedback_cant_quit"), action: #selector(feedbackCantQuit(_:)), keyEquivalent: "")
                     cantQuitItem.representedObject = NSNumber(value: app.processIdentifier)
                     cantQuitItem.target = self
@@ -458,7 +465,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func quitRunningApp(_ sender: NSMenuItem) {
         guard let pid = (sender.representedObject as? NSNumber)?.int32Value,
-              let app = NSRunningApplication(processIdentifier: pid) else { return }
+              let app = NSRunningApplication(processIdentifier: pid),
+              !Settings.shared.shouldProtectApp(
+                bundlePath: app.bundleURL?.path,
+                bundleID: app.bundleIdentifier,
+                activationPolicy: app.activationPolicy
+              ) else { return }
         app.terminate()
     }
 
