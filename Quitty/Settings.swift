@@ -453,6 +453,7 @@ class Settings: ObservableObject {
 
     private func isProtectedApp(bundlePath: String, bundleID: String?, activationPolicy: NSApplication.ActivationPolicy) -> Bool {
         if !isStandaloneApplicationBundle(bundlePath) { return true }
+        if let bundleID, Self.protectedSystemBundleIDs.contains(bundleID) { return true }
         if isProtectedSystemApp(bundlePath: bundlePath, activationPolicy: activationPolicy) { return true }
 
         // Never quit ourselves
@@ -461,6 +462,11 @@ class Settings: ObservableObject {
         
         return false
     }
+
+    private static let protectedSystemBundleIDs: Set<String> = [
+        "com.apple.loginwindow",
+        "com.apple.SecurityAgent"
+    ]
 
     private func isStandaloneApplicationBundle(_ bundlePath: String) -> Bool {
         let appSuffix = ".app"
@@ -480,8 +486,18 @@ class Settings: ObservableObject {
             return true
         }
 
-        // Apple security components such as MRT and XProtect live here.
-        if bundlePath.hasPrefix("/Library/Apple/System/") { return true }
+        let protectedSystemPathPrefixes = [
+            "/System/Library/Frameworks/",
+            "/System/Library/Input Methods/",
+            "/System/Library/PrivateFrameworks/",
+            "/Library/Apple/System/"
+        ]
+        if protectedSystemPathPrefixes.contains(where: { bundlePath.hasPrefix($0) }) {
+            return true
+        }
+
+        // Siri AI is a system service shipped alongside regular user-facing apps.
+        if bundlePath == "/System/Applications/Siri AI.app" { return true }
 
         guard bundlePath.hasPrefix("/System/") else { return false }
 
