@@ -453,19 +453,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               let record = FeedbackEngine.shared.history.first(where: { $0.id == id }) else { return }
         
         FeedbackEngine.shared.reportFalseQuit(recordID: id)
-        showFeedbackResult(for: record.appName)
+        showFeedbackResult(for: record.appName, action: .reopen(bundleID: record.bundleID))
     }
 
     @objc private func reopenApp(_ sender: NSMenuItem) {
         guard let bundleID = sender.representedObject as? String else { return }
+        reopenApp(bundleID: bundleID)
+    }
+
+    private func reopenApp(bundleID: String) {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             NSWorkspace.shared.open(url)
         }
     }
 
     @objc private func quitRunningApp(_ sender: NSMenuItem) {
-        guard let pid = (sender.representedObject as? NSNumber)?.int32Value,
-              let app = NSRunningApplication(processIdentifier: pid),
+        guard let pid = (sender.representedObject as? NSNumber)?.int32Value else { return }
+        quitRunningApp(pid: pid)
+    }
+
+    private func quitRunningApp(pid: pid_t) {
+        guard let app = NSRunningApplication(processIdentifier: pid),
               !Settings.shared.shouldProtectApp(
                 bundlePath: app.bundleURL?.path,
                 bundleID: app.bundleIdentifier,
@@ -482,15 +490,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appName = app.localizedName ?? "Unknown"
         
         FeedbackEngine.shared.reportCantQuit(bundleID: bundleID, appName: appName, pid: pid)
-        showFeedbackResult(for: appName)
+        showFeedbackResult(for: appName, action: .quit(pid: pid))
     }
 
-    private func showFeedbackResult(for appName: String) {
+    private enum FeedbackAction {
+        case quit(pid: pid_t)
+        case reopen(bundleID: String)
+    }
+
+    private func showFeedbackResult(for appName: String, action: FeedbackAction) {
         let alert = NSAlert()
         alert.messageText = Settings.shared.localizedString("alert_feedback_title")
         alert.informativeText = String(format: Settings.shared.localizedString("alert_feedback_msg"), appName)
+        switch action {
+        case .quit:
+            alert.addButton(withTitle: Settings.shared.localizedString("menu_quit_now"))
+        case .reopen:
+            alert.addButton(withTitle: Settings.shared.localizedString("menu_reopen"))
+        }
         alert.addButton(withTitle: Settings.shared.localizedString("btn_ok"))
-        alert.runModal()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        switch action {
+        case .quit(let pid):
+            quitRunningApp(pid: pid)
+        case .reopen(let bundleID):
+            reopenApp(bundleID: bundleID)
+        }
     }
 
     @objc private func toggleAppInList(_ sender: NSMenuItem) {
