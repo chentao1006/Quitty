@@ -169,7 +169,7 @@ cask "$CASK_TOKEN" do
   desc "Quit apps automatically when their last window is closed"
   homepage "https://github.com/$SOURCE_REPO"
 
-  depends_on macos: :big_sur
+  depends_on macos: :monterey
 
   app "$APP_NAME.app"
 
