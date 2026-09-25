@@ -1,0 +1,140 @@
+"app_name" = "靜隱";
+"menu_settings" = "設定...";
+"menu_check_updates" = "檢查更新...";
+"menu_quit" = "結束";
+"menu_reopen" = "重新開啟";
+"menu_feedback_reopen" = "回報誤退";
+"menu_recently_quit" = "最近結束";
+"menu_running_apps" = "正在執行";
+"menu_quit_now" = "立即結束";
+"menu_feedback_cant_quit" = "回報未退出";
+"menu_add_to_list" = "加入列表";
+"menu_remove_from_list" = "從列表移除";
+"subtitle" = "讓指定 App 在最後一個視窗關閉時自動結束";
+
+"tab_general" = "一般";
+"tab_apps" = "App";
+"tab_data" = "記錄";
+"tab_about" = "關於";
+
+"section_general" = "一般";
+"launch_hidden" = "啟動時隱藏視窗";
+"show_menubar_icon" = "顯示選單列圖示";
+"launch_at_login" = "登入時啟動";
+"language" = "語言";
+"section_sync" = "同步";
+"icloud_sync" = "iCloud 同步";
+"icloud_sync_desc" = "使用 iCloud 鍵值儲存在您的裝置之間同步設定。";
+"enable_analytics" = "分享匿名使用資料以協助改善靜隱";
+
+"section_backup" = "備份與還原";
+"btn_export" = "匯出設定...";
+"btn_import" = "匯入設定...";
+
+"lang_system" = "跟隨系統";
+"lang_en" = "English";
+"lang_zh" = "中文";
+
+"section_behavior" = "行為";
+"quit_delay" = "退出延遲";
+"seconds_format" = "%d 秒";
+"mode" = "模式：";
+"mode_exclude" = "所有 App（列表中的除外）";
+"mode_include" = "僅限列表中的 App";
+
+"section_apps" = "App";
+"search_apps_placeholder" = "搜尋 App";
+"btn_add" = "+ 加入 App";
+"btn_remove" = "- 移除所選項目";
+
+"section_permissions" = "系統權限";
+"accessibility_access" = "輔助使用權限";
+"status_authorized" = "已授權";
+"status_unauthorized" = "未授權";
+"btn_check" = "再次檢查";
+"btn_grant" = "授予權限";
+"permission_desc" = "需要輔助使用權限，才能監控視窗狀態並自動結束 App。";
+
+"alert_perm_title" = "需要輔助使用權限";
+"alert_perm_msg" = "「靜隱」需要輔助使用權限才能偵測 App 視窗何時關閉。\n\n請前往「系統設定」→「隱私權與安全性」→「輔助使用」授予權限，然後再次按一下「靜隱」。";
+"btn_open_settings" = "開啟系統設定";
+"btn_ignore" = "忽略";
+
+"alert_hidden_title" = "選單列圖示已隱藏";
+"alert_hidden_msg" = "「靜隱」將不再顯示於選單列。如需再次開啟設定，請從「應用程式」檔案夾啟動本 App。";
+"alert_feedback_title" = "已記錄回報";
+"alert_feedback_msg" = "已記錄關於 %@ 的回報，並將用於改善此 Mac 上的靜隱。";
+"btn_ok" = "好";
+
+"panel_choose_app" = "選擇應用程式";
+"col_app" = "應用程式";
+
+"desc_exclude" = "「靜隱」會在所有視窗關閉後自動結束 App，但下列 App 除外：";
+"desc_include" = "「靜隱」只會自動結束下列 App：";
+
+"section_logs" = "執行記錄";
+"btn_clear_logs" = "清除記錄";
+"btn_export_logs" = "匯出記錄...";
+"github" = "GitHub";
+"feedback_suggestions" = "意見回饋與建議";
+
+"tab_history" = "記錄";
+"section_history" = "退出記錄";
+"history_desc" = "由「靜隱」自動結束的 App。如果某次退出有誤，請按一下「回報誤退」協助「靜隱」學習。";
+"history_empty" = "尚無退出記錄。";
+"btn_clear_history" = "清除記錄";
+"btn_false_quit" = "回報誤退";
+"btn_cant_quit" = "回報未退出";
+"btn_feedback" = "回報";
+"feedback_false_quit" = "已回報：誤退";
+"feedback_cant_quit" = "已回報：未退出";
+"feedback_reported" = "已回報";
+"log_feedback_false_quit" = "已記錄 %@ 的回報 [誤退]。";
+"log_feedback_false_quit_no_history" = "已記錄 %@ 的回報 [誤退]（無記錄）。";
+"log_feedback_cant_quit" = "已記錄 %@ 的回報 [未退出]。擷取到 %d 個視窗。";
+"log_learned_ghost" = "從退出失敗回報中學習到幽靈視窗 (%dx%d)。";
+"btn_undo_feedback" = "復原回報";
+"btn_browse" = "瀏覽 App...";
+"running_apps" = "正在執行的 App";
+"section_live_monitor" = "即時監控";
+"diag_performance_title" = "效能";
+"diag_performance_desc" = "以下是靜隱最近花費最多資源檢查的 App。";
+"diag_empty_title" = "尚無效能資料";
+"diag_empty_desc" = "使用靜隱一段時間後，需要較多檢查的 App 會顯示在這裡。";
+"diag_logs_desc" = "最近的監控訊息。某個 App 表現異常時可在此查看。";
+"diag_trend_title" = "近期趨勢";
+"diag_load_good" = "低";
+"diag_load_ok" = "中";
+"diag_load_busy" = "高";
+"diag_load_hot" = "很高";
+"diag_summary_hot" = "此 App 目前是監控負擔最大的來源之一。";
+"diag_summary_busy" = "此 App 產生了明顯的監控負擔。";
+"diag_summary_fallback" = "靜隱經常需要對此 App 執行備用檢查。";
+"diag_summary_rescue" = "靜隱需要經常重新確認此 App。";
+"diag_summary_notifications" = "此 App 會傳送大量視窗活動通知。";
+"diag_summary_low" = "此 App 目前很安靜。";
+"diag_summary_normal" = "此 App 目前大多能正常處理。";
+"diag_reason_fallback" = "它的視窗有時難以立即確認，因此靜隱會改用較慢的備用檢查。";
+"diag_reason_rescue" = "它的視窗狀態不一定會立即穩定，因此靜隱稍後會再次檢查。";
+"diag_reason_notifications" = "它會產生許多視窗事件，因此靜隱需要花更多時間監控。";
+"diag_reason_quiet" = "靜隱目前幾乎不需要檢查此 App。";
+"diag_reason_normal" = "靜隱通常不需額外處理即可判斷發生的情況。";
+"diag_badge_recent" = "最近";
+"diag_badge_checks" = "檢查";
+"diag_badge_fallback" = "備用檢查";
+"diag_trend_worse" = "負擔增加";
+"diag_trend_better" = "負擔減少";
+"diag_trend_flat" = "大致相同";
+"diag_checks_low" = "很少";
+"diag_checks_some" = "少量";
+"diag_checks_many" = "不少";
+"diag_checks_lots" = "很多";
+"diag_fallback_none" = "無";
+"diag_fallback_rare" = "偶爾";
+"diag_fallback_often" = "經常";
+"diag_detail_format" = "檢查 %1$@ · 備用 %2$@ · 複查 %3$@";
+
+"analytics_prompt_title" = "協助改善靜隱";
+"analytics_prompt_desc" = "您是否願意分享匿名使用資料以協助改善靜隱？我們不會收集任何可識別您身分的資訊。您可以隨時在「設定」中變更此選項。";
+"btn_agree" = "同意";
+"btn_decline" = "拒絕";

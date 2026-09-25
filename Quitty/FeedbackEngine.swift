@@ -211,7 +211,7 @@ class FeedbackEngine: ObservableObject {
                 falseQuitCount: 0, cantQuitCount: 0
             )
             rule.falseQuitCount += 1
-            rule.ghostProneOverride = false // Reset aggressive mode on false quit
+            rule.ghostProneOverride = false // Reset aggressive mode on incorrect quit
 
             // If any existing ghost sizes match these real windows, remove them
             for snap in record.windowSnapshots {
@@ -243,7 +243,7 @@ class FeedbackEngine: ObservableObject {
                     Settings.shared.log(logMsg)
                 }
             }
-            // If we have more failures to quit than false quits, become more aggressive
+            // If we have more failures to quit than incorrect quits, become more aggressive
             if rule.cantQuitCount > rule.falseQuitCount {
                 rule.ghostProneOverride = true
             }
@@ -382,7 +382,7 @@ class FeedbackEngine: ObservableObject {
             if abs(net) < 2 { return 1.0 }
             if net > 0 {
                 // Require repeated cant-quit feedback before becoming more aggressive,
-                // and clamp the effect so a few reports do not swing to false quits.
+                // and clamp the effect so a few reports do not swing to incorrect quits.
                 return min(1.45, 1.0 + CGFloat(min(net - 1, 4)) * 0.15)
             } else {
                 // Likewise, make false-quit feedback more conservative without making

@@ -1,0 +1,140 @@
+"app_name" = "Quitty";
+"menu_settings" = "설정...";
+"menu_check_updates" = "업데이트 확인...";
+"menu_quit" = "Quitty 종료";
+"menu_reopen" = "다시 열기";
+"menu_feedback_reopen" = "잘못된 종료 신고";
+"menu_recently_quit" = "최근 종료됨";
+"menu_running_apps" = "실행 중인 앱";
+"menu_quit_now" = "즉시 종료";
+"menu_feedback_cant_quit" = "종료 실패 신고";
+"menu_add_to_list" = "목록에 추가";
+"menu_remove_from_list" = "목록에서 제거";
+"subtitle" = "마지막 윈도우를 닫으면 지정한 앱을 자동으로 종료합니다";
+
+"tab_general" = "일반";
+"tab_apps" = "앱";
+"tab_data" = "로그";
+"tab_about" = "정보";
+
+"section_general" = "일반";
+"launch_hidden" = "윈도우를 열지 않고 실행";
+"show_menubar_icon" = "메뉴 막대 아이콘 표시";
+"launch_at_login" = "로그인 시 실행";
+"language" = "언어";
+"section_sync" = "동기화";
+"icloud_sync" = "iCloud 동기화";
+"icloud_sync_desc" = "iCloud 키-값 저장소를 사용하여 기기 간 설정을 동기화합니다.";
+"enable_analytics" = "Quitty 개선을 위해 익명 사용 데이터 공유";
+
+"section_backup" = "백업 및 복원";
+"btn_export" = "설정 내보내기...";
+"btn_import" = "설정 가져오기...";
+
+"lang_system" = "시스템 기본값";
+"lang_en" = "English";
+"lang_zh" = "中文";
+
+"section_behavior" = "동작";
+"quit_delay" = "종료 지연";
+"seconds_format" = "%d초";
+"mode" = "모드:";
+"mode_exclude" = "모든 앱(목록의 앱 제외)";
+"mode_include" = "목록의 앱만";
+
+"section_apps" = "앱";
+"search_apps_placeholder" = "앱 검색";
+"btn_add" = "+ 앱 추가";
+"btn_remove" = "- 선택 항목 제거";
+
+"section_permissions" = "시스템 권한";
+"accessibility_access" = "손쉬운 사용 권한";
+"status_authorized" = "허용됨";
+"status_unauthorized" = "허용되지 않음";
+"btn_check" = "다시 확인";
+"btn_grant" = "접근 허용";
+"permission_desc" = "Quitty가 윈도우 상태를 감시하고 앱을 종료하려면 손쉬운 사용 권한이 필요합니다.";
+
+"alert_perm_title" = "손쉬운 사용 권한 필요";
+"alert_perm_msg" = "Quitty가 앱 윈도우가 닫히는 시점을 감지하려면 손쉬운 사용 권한이 필요합니다.\n\n시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용에서 접근을 허용한 다음 Quitty를 다시 클릭하십시오.";
+"btn_open_settings" = "시스템 설정 열기";
+"btn_ignore" = "무시";
+
+"alert_hidden_title" = "메뉴 막대 아이콘 숨겨짐";
+"alert_hidden_msg" = "Quitty가 더 이상 메뉴 막대에 표시되지 않습니다. 설정을 다시 열려면 응용 프로그램 폴더에서 Quitty를 실행하십시오.";
+"alert_feedback_title" = "신고가 기록됨";
+"alert_feedback_msg" = "%@에 대한 신고가 기록되었으며 이 Mac의 Quitty를 개선하는 데 사용됩니다.";
+"btn_ok" = "확인";
+
+"panel_choose_app" = "응용 프로그램 선택";
+"col_app" = "응용 프로그램";
+
+"desc_exclude" = "Quitty는 아래 목록의 앱을 제외하고 모든 윈도우가 닫힌 앱을 자동으로 종료합니다:";
+"desc_include" = "Quitty는 아래 목록의 앱만 자동으로 종료합니다:";
+
+"section_logs" = "실행 로그";
+"btn_clear_logs" = "로그 지우기";
+"btn_export_logs" = "로그 내보내기...";
+"github" = "GitHub";
+"feedback_suggestions" = "피드백 및 제안";
+
+"tab_history" = "기록";
+"section_history" = "종료 기록";
+"history_desc" = "Quitty가 자동으로 종료한 앱입니다. 앱이 잘못 종료된 경우 ‘잘못된 종료 신고’를 눌러 Quitty가 학습하도록 도와주십시오.";
+"history_empty" = "종료 기록이 없습니다.";
+"btn_clear_history" = "기록 지우기";
+"btn_false_quit" = "잘못된 종료 신고";
+"btn_cant_quit" = "종료 실패 신고";
+"btn_feedback" = "신고";
+"feedback_false_quit" = "신고됨: 잘못된 종료";
+"feedback_cant_quit" = "신고됨: 종료 실패";
+"feedback_reported" = "신고됨";
+"log_feedback_false_quit" = "%@에 대한 신고 [잘못된 종료]가 기록되었습니다.";
+"log_feedback_false_quit_no_history" = "%@에 대한 신고 [잘못된 종료](기록 없음)가 기록되었습니다.";
+"log_feedback_cant_quit" = "%@에 대한 신고 [종료 실패]가 기록되었습니다. %d개의 윈도우를 캡처했습니다.";
+"log_learned_ghost" = "종료 실패 신고에서 고스트 윈도우(%dx%d)를 학습했습니다.";
+"btn_undo_feedback" = "신고 취소";
+"btn_browse" = "앱 찾아보기...";
+"running_apps" = "실행 중인 앱";
+"section_live_monitor" = "실시간 모니터";
+"diag_performance_title" = "성능";
+"diag_performance_desc" = "최근 Quitty가 확인에 가장 많은 작업을 사용한 앱입니다.";
+"diag_empty_title" = "아직 성능 데이터가 없음";
+"diag_empty_desc" = "Quitty를 잠시 사용하면 확인이 많이 필요한 앱이 여기에 표시됩니다.";
+"diag_logs_desc" = "최근 감시 메시지입니다. 앱이 이상하게 동작할 때 유용합니다.";
+"diag_trend_title" = "최근 추세";
+"diag_load_good" = "낮음";
+"diag_load_ok" = "보통";
+"diag_load_busy" = "높음";
+"diag_load_hot" = "매우 높음";
+"diag_summary_hot" = "이 앱은 현재 감시 부하가 가장 큰 앱 중 하나입니다.";
+"diag_summary_busy" = "이 앱은 눈에 띄는 감시 부하를 발생시키고 있습니다.";
+"diag_summary_fallback" = "Quitty가 이 앱에 대해 자주 예비 확인을 수행합니다.";
+"diag_summary_rescue" = "Quitty가 이 앱을 상당히 자주 다시 확인해야 합니다.";
+"diag_summary_notifications" = "이 앱은 많은 윈도우 활동 알림을 보냅니다.";
+"diag_summary_low" = "이 앱은 지금까지 조용합니다.";
+"diag_summary_normal" = "이 앱은 대부분 정상적으로 처리되고 있습니다.";
+"diag_reason_fallback" = "윈도우를 즉시 확인하기 어려운 경우가 있어 Quitty가 더 느린 예비 확인을 사용합니다.";
+"diag_reason_rescue" = "윈도우 상태가 즉시 안정되지 않아 Quitty가 나중에 다시 확인합니다.";
+"diag_reason_notifications" = "많은 윈도우 이벤트가 발생하므로 Quitty가 감시에 더 많은 시간을 사용합니다.";
+"diag_reason_quiet" = "Quitty가 아직 이 앱을 거의 확인하지 않았습니다.";
+"diag_reason_normal" = "Quitty는 일반적으로 추가 작업 없이 상황을 판단할 수 있습니다.";
+"diag_badge_recent" = "최근";
+"diag_badge_checks" = "확인";
+"diag_badge_fallback" = "예비 확인";
+"diag_trend_worse" = "부하 증가";
+"diag_trend_better" = "부하 감소";
+"diag_trend_flat" = "비슷함";
+"diag_checks_low" = "매우 적음";
+"diag_checks_some" = "약간";
+"diag_checks_many" = "꽤 많음";
+"diag_checks_lots" = "많음";
+"diag_fallback_none" = "없음";
+"diag_fallback_rare" = "드물게";
+"diag_fallback_often" = "자주";
+"diag_detail_format" = "확인 %1$@ · 예비 %2$@ · 재확인 %3$@";
+
+"analytics_prompt_title" = "Quitty 개선에 참여";
+"analytics_prompt_desc" = "Quitty 개선을 위해 익명 사용 데이터를 공유하시겠습니까? 개인 식별 정보는 수집하지 않습니다. 이 설정은 언제든지 변경할 수 있습니다.";
+"btn_agree" = "동의";
+"btn_decline" = "거절";

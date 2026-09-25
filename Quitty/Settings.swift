@@ -134,7 +134,7 @@ class Settings: ObservableObject {
             return NSLocalizedString(key, comment: "")
         }
         
-        let code = language == "zh" ? "zh-Hans" : "en"
+        let code = language == "zh" ? "zh-Hans" : language
         if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
            let bundle = Bundle(path: path) {
             return NSLocalizedString(key, tableName: nil, bundle: bundle, value: "", comment: "")

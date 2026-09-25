@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Quitty";
+"CFBundleName" = "Quitty";
+"NSAccessibilityUsageDescription" = "Quitty가 실행 중인 모든 앱의 윈도우 닫기 이벤트를 감시하려면 손쉬운 사용 권한이 필요합니다.";
+"NSAppleEventsUsageDescription" = "Quitty가 마지막 윈도우가 닫힌 앱에 종료 이벤트를 보내려면 권한이 필요합니다.";

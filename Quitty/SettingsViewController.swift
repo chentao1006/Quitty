@@ -176,6 +176,13 @@ struct GeneralSettingsView: View {
                     Text(settings.localizedString("lang_system")).tag("system")
                     Text(settings.localizedString("lang_en")).tag("en")
                     Text(settings.localizedString("lang_zh")).tag("zh")
+                    Text("繁體中文").tag("zh-Hant")
+                    Text("日本語").tag("ja")
+                    Text("한국어").tag("ko")
+                    Text("Deutsch").tag("de")
+                    Text("Français").tag("fr")
+                    Text("Español").tag("es")
+                    Text("Português (Brasil)").tag("pt-BR")
                 }
             } header: {
                 Text(settings.localizedString("section_general"))

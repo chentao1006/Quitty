@@ -915,7 +915,7 @@ class WindowWatcher {
         let cautionMult = sensitivityMult > 0 ? 1.0 / sensitivityMult : 1.0
 
         // DYNAMIC STATUS:
-        // 1. If an app has EVER been reported for False Quit, it becomes "Special Care" automatically.
+        // 1. If an app has EVER been reported for Incorrect Quit, it becomes "Special Care" automatically.
         let isSpecialFromFeedback = sensitivityMult < 0.95
         let isSpecial = (app.map { isSpecialCareApp($0) } ?? false) || isSpecialFromFeedback
 
@@ -942,7 +942,7 @@ class WindowWatcher {
 
             if alpha < 0.01 { continue }
             
-            // Hardcoded minimum 40x40; drops to 20x20 if we've had many False Quits
+            // Hardcoded minimum 40x40; drops to 20x20 if we've had many Incorrect Quits
             let minDim: CGFloat = sensitivityMult < 0.6 ? 20 : 40
             if width <= minDim || height <= minDim { continue }
 
@@ -992,19 +992,19 @@ class WindowWatcher {
 
             // If it matches a universal ghost size:
             if !learnedGhost && isGhostSize {
-                // We allow "False Quit" feedback to override universal ghosts.
-                // We used to require isOnScreen, but if a user says it's a false quit, 
+                // We allow "Incorrect Quit" feedback to override universal ghosts.
+                // We used to require isOnScreen, but if a user reports an incorrect quit,
                 // we should trust them even for off-screen windows.
                 if sensitivityMult < 0.75 {
-                    Settings.shared.log("   -> Universal ghost size (\(Int(width))x\(Int(height))) considered POSSIBLY REAL due to multiple False Quit reports (\(isOnScreen ? "onscreen" : "offscreen")).")
+                    Settings.shared.log("   -> Universal ghost size (\(Int(width))x\(Int(height))) considered POSSIBLY REAL due to multiple Incorrect Quit reports (\(isOnScreen ? "onscreen" : "offscreen")).")
                 } else {
                     // Settings.shared.log("   -> Skipped universal ghost size: \(Int(width))x\(Int(height)) (PID: \(pid))")
                     continue // Trust the universal ghost list
                 }
             } else if learnedGhost {
-                // If the user has reported "False Quit" multiple times, we stop trusting even learned ghosts.
+                // If the user has reported "Incorrect Quit" multiple times, we stop trusting even learned ghosts.
                 if sensitivityMult < 0.5 {
-                    Settings.shared.log("   -> Learned ghost size (\(Int(width))x\(Int(height))) RECLAIMED as real due to repeated False Quits (\(isOnScreen ? "onscreen" : "offscreen")).")
+                    Settings.shared.log("   -> Learned ghost size (\(Int(width))x\(Int(height))) RECLAIMED as real due to repeated Incorrect Quits (\(isOnScreen ? "onscreen" : "offscreen")).")
                 } else {
                     continue // Always trust user-learned ghosts
                 }

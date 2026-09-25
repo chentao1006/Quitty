@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "靜隱";
+"CFBundleName" = "靜隱";
+"NSAccessibilityUsageDescription" = "「靜隱」需要輔助使用權限才能監控所有執行中 App 的視窗關閉事件。";
+"NSAppleEventsUsageDescription" = "「靜隱」需要在 App 的最後一個視窗關閉時傳送退出指令。";

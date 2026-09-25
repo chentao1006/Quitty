@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Quitty";
+"CFBundleName" = "Quitty";
+"NSAccessibilityUsageDescription" = "Quittyが実行中のすべてのアプリのウインドウ終了イベントを監視するには、アクセシビリティアクセスが必要です。";
+"NSAppleEventsUsageDescription" = "Quittyが最後のウインドウを閉じたアプリに終了イベントを送信するには、アクセスが必要です。";

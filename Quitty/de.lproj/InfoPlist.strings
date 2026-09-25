@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Quitty";
+"CFBundleName" = "Quitty";
+"NSAccessibilityUsageDescription" = "Quitty benötigt Zugriff auf die Bedienungshilfen, um das Schließen von Fenstern aller laufenden Apps zu überwachen.";
+"NSAppleEventsUsageDescription" = "Quitty muss Apps ein Beenden-Ereignis senden, wenn ihr letztes Fenster geschlossen wird.";

@@ -1,0 +1,140 @@
+"app_name" = "Quitty";
+"menu_settings" = "Ajustes...";
+"menu_check_updates" = "Buscar actualizaciones...";
+"menu_quit" = "Salir de Quitty";
+"menu_reopen" = "Volver a abrir";
+"menu_feedback_reopen" = "Informar de cierre incorrecto";
+"menu_recently_quit" = "Cerradas recientemente";
+"menu_running_apps" = "Apps en ejecución";
+"menu_quit_now" = "Salir inmediatamente";
+"menu_feedback_cant_quit" = "Informar de fallo al salir";
+"menu_add_to_list" = "Añadir a la lista";
+"menu_remove_from_list" = "Eliminar de la lista";
+"subtitle" = "Salir automáticamente de determinadas apps al cerrar su última ventana";
+
+"tab_general" = "General";
+"tab_apps" = "Apps";
+"tab_data" = "Registros";
+"tab_about" = "Acerca de";
+
+"section_general" = "GENERAL";
+"launch_hidden" = "Iniciar sin abrir una ventana";
+"show_menubar_icon" = "Mostrar icono en la barra de menús";
+"launch_at_login" = "Iniciar al iniciar sesión";
+"language" = "Idioma";
+"section_sync" = "SINCRONIZACIÓN";
+"icloud_sync" = "Sincronización con iCloud";
+"icloud_sync_desc" = "Sincroniza los ajustes entre tus dispositivos mediante el almacén de clave-valor de iCloud.";
+"enable_analytics" = "Compartir datos de uso anónimos para mejorar Quitty";
+
+"section_backup" = "COPIA DE SEGURIDAD Y RESTAURACIÓN";
+"btn_export" = "Exportar ajustes...";
+"btn_import" = "Importar ajustes...";
+
+"lang_system" = "Idioma del sistema";
+"lang_en" = "Inglés";
+"lang_zh" = "Chino";
+
+"section_behavior" = "COMPORTAMIENTO";
+"quit_delay" = "Retraso al salir";
+"seconds_format" = "%d s";
+"mode" = "Modo:";
+"mode_exclude" = "Todas las apps (excepto las de la lista)";
+"mode_include" = "Solo las apps de la lista";
+
+"section_apps" = "APPS";
+"search_apps_placeholder" = "Buscar apps";
+"btn_add" = "+ Añadir app";
+"btn_remove" = "- Eliminar selección";
+
+"section_permissions" = "PERMISOS DEL SISTEMA";
+"accessibility_access" = "Acceso de accesibilidad";
+"status_authorized" = "Autorizado";
+"status_unauthorized" = "No autorizado";
+"btn_check" = "Comprobar de nuevo";
+"btn_grant" = "Conceder acceso";
+"permission_desc" = "Quitty necesita permiso de accesibilidad para supervisar el estado de las ventanas y salir de las apps.";
+
+"alert_perm_title" = "Se requiere acceso de accesibilidad";
+"alert_perm_msg" = "Quitty necesita acceso de accesibilidad para detectar cuándo se cierran las ventanas de las apps.\n\nConcede acceso en Ajustes del Sistema → Privacidad y seguridad → Accesibilidad y vuelve a hacer clic en Quitty.";
+"btn_open_settings" = "Abrir Ajustes del Sistema";
+"btn_ignore" = "Ignorar";
+
+"alert_hidden_title" = "Icono de la barra de menús oculto";
+"alert_hidden_msg" = "Quitty dejará de aparecer en la barra de menús. Para volver a abrir los ajustes, inicia la app desde la carpeta Aplicaciones.";
+"alert_feedback_title" = "Informe registrado";
+"alert_feedback_msg" = "Tu informe sobre %@ se ha registrado y se utilizará para mejorar Quitty en este Mac.";
+"btn_ok" = "Aceptar";
+
+"panel_choose_app" = "Seleccionar aplicación";
+"col_app" = "Aplicación";
+
+"desc_exclude" = "Quitty saldrá automáticamente de todas las apps al cerrar sus ventanas, excepto las indicadas a continuación:";
+"desc_include" = "Quitty solo saldrá automáticamente de las apps indicadas a continuación:";
+
+"section_logs" = "REGISTROS DE EJECUCIÓN";
+"btn_clear_logs" = "Borrar registros";
+"btn_export_logs" = "Exportar registros...";
+"github" = "GitHub";
+"feedback_suggestions" = "Comentarios y sugerencias";
+
+"tab_history" = "Historial";
+"section_history" = "HISTORIAL DE CIERRES";
+"history_desc" = "Apps cerradas automáticamente por Quitty. Si una app se cerró por error, pulsa «Informar de cierre incorrecto» para que Quitty aprenda.";
+"history_empty" = "Aún no hay historial de cierres.";
+"btn_clear_history" = "Borrar historial";
+"btn_false_quit" = "Informar de cierre incorrecto";
+"btn_cant_quit" = "Informar de fallo al salir";
+"btn_feedback" = "Informar";
+"feedback_false_quit" = "Informado: cierre incorrecto";
+"feedback_cant_quit" = "Informado: fallo al salir";
+"feedback_reported" = "Informado";
+"log_feedback_false_quit" = "Informe [Cierre incorrecto] registrado para %@.";
+"log_feedback_false_quit_no_history" = "Informe [Cierre incorrecto] (sin historial) registrado para %@.";
+"log_feedback_cant_quit" = "Informe [Fallo al salir] para %@. Se capturaron %d ventanas.";
+"log_learned_ghost" = "Ventana fantasma (%dx%d) aprendida de un informe de fallo al salir.";
+"btn_undo_feedback" = "Deshacer informe";
+"btn_browse" = "Explorar apps...";
+"running_apps" = "Apps en ejecución";
+"section_live_monitor" = "SUPERVISIÓN EN DIRECTO";
+"diag_performance_title" = "Rendimiento";
+"diag_performance_desc" = "Estas son las apps que más esfuerzo de comprobación han requerido de Quitty recientemente.";
+"diag_empty_title" = "Aún no hay datos de rendimiento";
+"diag_empty_desc" = "Usa Quitty durante un tiempo. Las apps que necesiten más comprobaciones aparecerán aquí.";
+"diag_logs_desc" = "Mensajes recientes del supervisor. Resultan útiles cuando una app se comporta de forma extraña.";
+"diag_trend_title" = "Tendencia reciente";
+"diag_load_good" = "Baja";
+"diag_load_ok" = "Media";
+"diag_load_busy" = "Alta";
+"diag_load_hot" = "Muy alta";
+"diag_summary_hot" = "Esta app es actualmente una de las mayores fuentes de trabajo de supervisión.";
+"diag_summary_busy" = "Esta app genera una carga de supervisión considerable.";
+"diag_summary_fallback" = "Quitty necesita con frecuencia una comprobación alternativa para esta app.";
+"diag_summary_rescue" = "Quitty tiene que volver a comprobar esta app con bastante frecuencia.";
+"diag_summary_notifications" = "Esta app envía muchas notificaciones de actividad de ventanas.";
+"diag_summary_low" = "Esta app se ha mantenido tranquila hasta ahora.";
+"diag_summary_normal" = "Esta app se gestiona con normalidad la mayor parte del tiempo.";
+"diag_reason_fallback" = "A veces es difícil confirmar sus ventanas, por lo que Quitty recurre a una comprobación alternativa más lenta.";
+"diag_reason_rescue" = "El estado de sus ventanas no siempre queda claro de inmediato, por lo que Quitty vuelve a comprobarlo más tarde.";
+"diag_reason_notifications" = "Produce muchos eventos de ventana, por lo que Quitty dedica más tiempo a supervisarla.";
+"diag_reason_quiet" = "Quitty apenas ha tenido que comprobar esta app.";
+"diag_reason_normal" = "Quitty normalmente puede determinar lo ocurrido sin trabajo adicional.";
+"diag_badge_recent" = "Reciente";
+"diag_badge_checks" = "Comprobaciones";
+"diag_badge_fallback" = "Comprobaciones alternativas";
+"diag_trend_worse" = "Aumentando";
+"diag_trend_better" = "Disminuyendo";
+"diag_trend_flat" = "Sin cambios";
+"diag_checks_low" = "Muy pocas";
+"diag_checks_some" = "Algunas";
+"diag_checks_many" = "Bastantes";
+"diag_checks_lots" = "Muchas";
+"diag_fallback_none" = "Ninguna";
+"diag_fallback_rare" = "Rara vez";
+"diag_fallback_often" = "A menudo";
+"diag_detail_format" = "Comprobaciones %1$@ · Alternativas %2$@ · Revisiones %3$@";
+
+"analytics_prompt_title" = "Ayuda a mejorar Quitty";
+"analytics_prompt_desc" = "¿Quieres compartir datos de uso anónimos para ayudar a mejorar Quitty? No se recopila información de identificación personal. Puedes cambiar esta opción en cualquier momento en Ajustes.";
+"btn_agree" = "Aceptar";
+"btn_decline" = "Rechazar";
