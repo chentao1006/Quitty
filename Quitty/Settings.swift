@@ -161,11 +161,27 @@ class Settings: ObservableObject {
 
     @objc private func iCloudStoreDidChange(_ notification: Notification) {
         guard iCloudSyncEnabled else { return }
-        
+
+        // On the initial download, local writes made before it completed were discarded by the system,
+        // so merge the app list instead of replacing it and push the result back.
+        let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+        let isInitialSync = reason == NSUbiquitousKeyValueStoreInitialSyncChange
+
         DispatchQueue.main.async {
-            self.loadFromICloud()
+            self.loadFromICloud(mergingExcludedApps: isInitialSync)
+            if isInitialSync {
+                self.saveToICloud()
+            }
             self.log("iCloud data changed externally, settings updated")
         }
+    }
+
+    /// Pushes a single changed setting, so a device never overwrites other keys with stale local values.
+    private func pushToICloud(_ key: Key, _ value: Any) {
+        guard iCloudSyncEnabled else { return }
+        let store = NSUbiquitousKeyValueStore.default
+        store.set(value, forKey: key.rawValue)
+        store.synchronize()
     }
 
     func saveToICloud() {
@@ -184,7 +200,7 @@ class Settings: ObservableObject {
         log("Settings saved to iCloud")
     }
 
-    func loadFromICloud() {
+    func loadFromICloud(mergingExcludedApps: Bool = false) {
         guard iCloudSyncEnabled else { return }
         let store = NSUbiquitousKeyValueStore.default
         
@@ -208,8 +224,12 @@ class Settings: ObservableObject {
                 changed = true
             }
         }
-        if let v = store.array(forKey: Key.excludedApps.rawValue) as? [String] {
-            if v != excludedApps {
+        if let cloudApps = store.array(forKey: Key.excludedApps.rawValue) as? [String] {
+            let localApps = excludedApps
+            let v = mergingExcludedApps
+                ? localApps + cloudApps.filter { !localApps.contains($0) }
+                : cloudApps
+            if v != localApps {
                 defaults.set(v, forKey: Key.excludedApps.rawValue)
                 changed = true
             }
@@ -299,7 +319,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.launchHidden.rawValue)
-            saveToICloud()
+            pushToICloud(.launchHidden, newValue)
         }
     }
 
@@ -308,7 +328,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.menubarIconEnabled.rawValue)
-            saveToICloud()
+            pushToICloud(.menubarIconEnabled, newValue)
         }
     }
 
@@ -317,7 +337,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.excludeBehaviour.rawValue)
-            saveToICloud()
+            pushToICloud(.excludeBehaviour, newValue)
             if isAnalyticsEnabled {
                 Aptabase.shared.trackEvent("settings_changed", with: ["mode": newValue])
                 Aptabase.shared.flush()
@@ -330,7 +350,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.excludedApps.rawValue)
-            saveToICloud()
+            pushToICloud(.excludedApps, newValue)
         }
     }
 
@@ -339,7 +359,7 @@ class Settings: ObservableObject {
         set { 
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.appLanguage.rawValue)
-            saveToICloud()
+            pushToICloud(.appLanguage, newValue)
         }
     }
 
@@ -349,8 +369,11 @@ class Settings: ObservableObject {
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.iCloudSyncEnabled.rawValue)
             if newValue {
-                saveToICloud()
+                // Pull what other devices already synced before pushing, otherwise a newly joined
+                // device would overwrite the cloud (and every other device) with its own empty list.
                 NSUbiquitousKeyValueStore.default.synchronize()
+                loadFromICloud(mergingExcludedApps: true)
+                saveToICloud()
             }
         }
     }
@@ -361,7 +384,7 @@ class Settings: ObservableObject {
             objectWillChange.send()
             let clamped = Self.clampQuitDelay(newValue)
             defaults.set(clamped, forKey: Key.quitDelaySeconds.rawValue)
-            saveToICloud()
+            pushToICloud(.quitDelaySeconds, clamped)
             if isAnalyticsEnabled {
                 Aptabase.shared.trackEvent("settings_changed", with: ["quit_delay": String(clamped)])
                 Aptabase.shared.flush()
@@ -374,7 +397,7 @@ class Settings: ObservableObject {
         set {
             objectWillChange.send()
             defaults.set(newValue, forKey: Key.isAnalyticsEnabled.rawValue)
-            saveToICloud()
+            pushToICloud(.isAnalyticsEnabled, newValue)
         }
     }
 
